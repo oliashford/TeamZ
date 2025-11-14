@@ -1,0 +1,67 @@
+# ========== Unity Folders ==========
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Mm]emoryCaptures/
+UserSettings/
+[Aa]ssetStore/
+[Cc]ollab/
+
+# Packages cache
+Packages/com.unity.package-manager-ui/
+Packages/com.unity.collab-proxy/
+
+# ========== IDE / Editor ==========
+# Rider
+.idea/
+*.sln.iml
+*.DotSettings.user
+
+# VS Code
+.vscode/
+
+# Visual Studio (Windows)
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.user
+*.userprefs
+
+# ========== OS / File System ==========
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+
+# ========== Unity Auto-generated ==========
+Assets/AssetRefreshCache/
+Assets/StreamingAssets/UnityCache/
+ExportedObj/
+UnityPackageManager/
+sysinfo.txt
+
+# ========== Builds / External ==========
+*.apk
+*.aab
+*.app
+*.exe
+*.appx
+*.appxbundle
+*.msi
+*.ipa
+*.unitypackage
+
+# ========== Logs / Misc ==========
+*.log
+*.pidb
+*.booproj
+*.burst
+*.shadercache
+
+# ========== LFS sanity ==========
+!*.meta
