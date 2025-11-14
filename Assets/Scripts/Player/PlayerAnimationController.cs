@@ -21,7 +21,8 @@ namespace TeamZ.Player
             Locomotion,
             Jump,
             Fall,
-            Crouch
+            Crouch,
+            Climb
         }
 
         private enum GaitState
@@ -30,6 +31,14 @@ namespace TeamZ.Player
             Walk,
             Run,
             Sprint
+        }
+
+        private enum ClimbType
+        {
+            None = 0,
+            Low = 1,     // low vault over fences, low walls
+            High = 2,    // higher climb / pull-up
+            Mantle = 3   // mantle up onto roofs/containers
         }
 
         #endregion
@@ -75,6 +84,9 @@ namespace TeamZ.Player
 
         private readonly int _locomotionStartDirectionHash = Animator.StringToHash("LocomotionStartDirection");
 
+        private readonly int _isClimbingHash = Animator.StringToHash("IsClimbing");
+        private readonly int _climbTypeHash = Animator.StringToHash("ClimbType");
+
         #endregion
 
         #region Player Settings Variables
@@ -82,16 +94,19 @@ namespace TeamZ.Player
         #region Scripts/Objects
 
         [Header("External Components")]
-        [Tooltip("Script controlling camera behavior")]
+        [Tooltip("Script controlling camera behavior.")]
         [SerializeField]
         private CameraController _cameraController;
-        [Tooltip("InputReader handles player input")]
+
+        [Tooltip("InputReader handles player input (movement, jump, sprint, crouch, etc.).")]
         [SerializeField]
         private InputReader _inputReader;
-        [Tooltip("Animator component for controlling player animations")]
+
+        [Tooltip("Animator component for controlling player animations.")]
         [SerializeField]
         private Animator _animator;
-        [Tooltip("Character Controller component for controlling player movement")]
+
+        [Tooltip("CharacterController component used for player movement and collisions.")]
         [SerializeField]
         private CharacterController _controller;
 
@@ -101,25 +116,31 @@ namespace TeamZ.Player
 
         [Header("Player Locomotion")]
         [Header("Main Settings")]
-        [Tooltip("Whether the character always faces the camera facing direction")]
+        [Tooltip("If true, the character always faces the camera direction and uses strafing movement.")]
         [SerializeField]
         private bool _alwaysStrafe = true;
-        [Tooltip("Slowest movement speed of the player when set to a walk state or half press tick")]
+
+        [Tooltip("Slowest movement speed of the player when set to walk or half-press input.")]
         [SerializeField]
         private float _walkSpeed = 1.4f;
-        [Tooltip("Default movement speed of the player")]
+
+        [Tooltip("Default movement speed of the player when running.")]
         [SerializeField]
         private float _runSpeed = 2.5f;
-        [Tooltip("Top movement speed of the player")]
+
+        [Tooltip("Top movement speed of the player when sprinting.")]
         [SerializeField]
         private float _sprintSpeed = 7f;
-        [Tooltip("Damping factor for changing speed")]
+
+        [Tooltip("How quickly the character accelerates and decelerates to new speeds.")]
         [SerializeField]
         private float _speedChangeDamping = 10f;
-        [Tooltip("Rotation smoothing factor.")]
+
+        [Tooltip("Smoothing factor for character rotation towards desired facing direction.")]
         [SerializeField]
         private float _rotationSmoothing = 10f;
-        [Tooltip("Offset for camera rotation.")]
+
+        [Tooltip("Offset between camera facing and character facing used when strafing/turning in place.")]
         [SerializeField]
         private float _cameraRotationOffset;
 
@@ -128,13 +149,15 @@ namespace TeamZ.Player
         #region Shuffle Settings
 
         [Header("Shuffles")]
-        [Tooltip("Threshold for button hold duration.")]
+        [Tooltip("Time threshold (seconds) between tap and hold on movement input.")]
         [SerializeField]
         private float _buttonHoldThreshold = 0.15f;
-        [Tooltip("Direction of shuffling on the X-axis.")]
+
+        [Tooltip("Current shuffle direction on the X-axis (used for shuffle animations).")]
         [SerializeField]
         private float _shuffleDirectionX;
-        [Tooltip("Direction of shuffling on the Z-axis.")]
+
+        [Tooltip("Current shuffle direction on the Z-axis (used for shuffle animations).")]
         [SerializeField]
         private float _shuffleDirectionZ;
 
@@ -143,16 +166,19 @@ namespace TeamZ.Player
         #region Capsule Settings
 
         [Header("Capsule Values")]
-        [Tooltip("Standing height of the player capsule.")]
+        [Tooltip("Standing height of the CharacterController capsule.")]
         [SerializeField]
         private float _capsuleStandingHeight = 1.8f;
-        [Tooltip("Standing center of the player capsule.")]
+
+        [Tooltip("Center position (Y) of the CharacterController when standing.")]
         [SerializeField]
         private float _capsuleStandingCentre = 0.93f;
-        [Tooltip("Crouching height of the player capsule.")]
+
+        [Tooltip("Crouching height of the CharacterController capsule.")]
         [SerializeField]
         private float _capsuleCrouchingHeight = 1.2f;
-        [Tooltip("Crouching center of the player capsule.")]
+
+        [Tooltip("Center position (Y) of the CharacterController when crouching.")]
         [SerializeField]
         private float _capsuleCrouchingCentre = 0.6f;
 
@@ -161,13 +187,15 @@ namespace TeamZ.Player
         #region Strafing
 
         [Header("Player Strafing")]
-        [Tooltip("Minimum threshold for forward strafing angle.")]
+        [Tooltip("Minimum angle (degrees) from camera forward to still be considered forward strafing.")]
         [SerializeField]
         private float _forwardStrafeMinThreshold = -55.0f;
-        [Tooltip("Maximum threshold for forward strafing angle.")]
+
+        [Tooltip("Maximum angle (degrees) from camera forward to still be considered forward strafing.")]
         [SerializeField]
         private float _forwardStrafeMaxThreshold = 125.0f;
-        [Tooltip("Current forward strafing value.")]
+
+        [Tooltip("Current forward strafe blend value (0 = not forward, 1 = fully forward).")]
         [SerializeField]
         private float _forwardStrafe = 1f;
 
@@ -176,34 +204,90 @@ namespace TeamZ.Player
         #region Grounded Settings
 
         [Header("Grounded Angle")]
-        [Tooltip("Position of the rear ray for grounded angle check.")]
+        [Tooltip("Transform used as rear ray origin for ground incline check.")]
         [SerializeField]
         private Transform _rearRayPos;
-        [Tooltip("Position of the front ray for grounded angle check.")]
+
+        [Tooltip("Transform used as front ray origin for ground incline check.")]
         [SerializeField]
         private Transform _frontRayPos;
-        [Tooltip("Layer mask for checking ground.")]
+
+        [Tooltip("Layer mask used for all ground checks (ground, ramps, walkable surfaces).")]
         [SerializeField]
         private LayerMask _groundLayerMask;
-        [Tooltip("Current incline angle.")]
+
+        [Tooltip("Current incline angle under the character, in degrees.")]
         [SerializeField]
         private float _inclineAngle;
-        [Tooltip("Useful for rough ground")]
+
+        [Tooltip("Vertical offset used when checking if the character is grounded (tuned to capsule).")]
         [SerializeField]
         private float _groundedOffset = -0.14f;
+
+        #endregion
+
+        #region Climbing Settings
+
+        [Header("Climb Detection")]
+        [Tooltip("Origin for the forward climb ray (e.g. chest height). If null, capsule centre is used.")]
+        [SerializeField]
+        private Transform _climbRayOrigin;
+
+        [Tooltip("How far forward (in meters) to cast the climb detection ray.")]
+        [SerializeField]
+        private float _climbCheckDistance = 1.0f;
+
+        [Tooltip("Minimum height above the character’s feet for a ledge to be considered climbable.")]
+        [SerializeField]
+        private float _minClimbHeight = 0.3f;
+
+        [Tooltip("Maximum height above feet for a ledge to be treated as a low climb / vault.")]
+        [SerializeField]
+        private float _maxLowClimbHeight = 1.2f;
+
+        [Tooltip("Maximum height above feet for a ledge to be treated as a high climb (above can be mantle).")]
+        [SerializeField]
+        private float _maxHighClimbHeight = 2.0f;
+
+        [Tooltip("How far past the ledge the character should end up after finishing a climb.")]
+        [SerializeField]
+        private float _ledgeForwardOffset = 0.4f;
+
+        [Tooltip("Layer mask for climbable obstacles (walls, crates, containers, building edges, etc.).")]
+        [SerializeField]
+        private LayerMask _climbableLayerMask;
+
+        [Header("Climbing Debug")]
+        [Tooltip("Enables debug logs and debug draw lines for climb detection.")]
+        [SerializeField]
+        private bool _debugClimbDetection = true;
+
+        [Tooltip("Color used to draw the forward climb ray in the Scene view during play.")]
+        [SerializeField]
+        private Color _debugFrontRayColor = Color.cyan;
+
+        [Tooltip("Color used to draw the downward ray used when probing for the top of the obstacle.")]
+        [SerializeField]
+        private Color _debugTopRayColor = Color.yellow;
+
+        [Tooltip("Color used to mark the detected ledge position in the Scene view.")]
+        [SerializeField]
+        private Color _debugLedgeColor = Color.green;
 
         #endregion
 
         #region In-Air Settings
 
         [Header("Player In-Air")]
-        [Tooltip("Force applied when the player jumps.")]
+        [Tooltip("Initial upward velocity applied when the player jumps.")]
         [SerializeField]
         private float _jumpForce = 10f;
-        [Tooltip("Multiplier for gravity when in the air.")]
+
+        [Tooltip("Multiplier for gravity applied to the player while in the air.")]
         [SerializeField]
         private float _gravityMultiplier = 2f;
-        [Tooltip("Duration of falling.")]
+
+        [Tooltip("Current duration (seconds) the player has been falling.")]
         [SerializeField]
         private float _fallingDuration;
 
@@ -212,19 +296,23 @@ namespace TeamZ.Player
         #region Head Look Settings
 
         [Header("Player Head Look")]
-        [Tooltip("Flag indicating if head turning is enabled.")]
+        [Tooltip("If true, head look offsets are applied to animations.")]
         [SerializeField]
         private bool _enableHeadTurn = true;
-        [Tooltip("Delay for head turning.")]
+
+        [Tooltip("Delay before head turning is allowed after certain actions (e.g. locomotion start).")]
         [SerializeField]
         private float _headLookDelay;
-        [Tooltip("X-axis value for head turning.")]
+
+        [Tooltip("Current X-axis look offset for the head (used by the Animator).")]
         [SerializeField]
         private float _headLookX;
-        [Tooltip("Y-axis value for head turning.")]
+
+        [Tooltip("Current Y-axis look offset for the head (used by the Animator).")]
         [SerializeField]
         private float _headLookY;
-        [Tooltip("Curve for X-axis head turning.")]
+
+        [Tooltip("Curve controlling how head look responds to rotation rate on the X-axis.")]
         [SerializeField]
         private AnimationCurve _headLookXCurve;
 
@@ -233,19 +321,23 @@ namespace TeamZ.Player
         #region Body Look Settings
 
         [Header("Player Body Look")]
-        [Tooltip("Flag indicating if body turning is enabled.")]
+        [Tooltip("If true, body look offsets are applied to animations.")]
         [SerializeField]
         private bool _enableBodyTurn = true;
-        [Tooltip("Delay for body turning.")]
+
+        [Tooltip("Delay before body turning is allowed after certain actions (e.g. locomotion start).")]
         [SerializeField]
         private float _bodyLookDelay;
-        [Tooltip("X-axis value for body turning.")]
+
+        [Tooltip("Current X-axis look offset for the body (used by the Animator).")]
         [SerializeField]
         private float _bodyLookX;
-        [Tooltip("Y-axis value for body turning.")]
+
+        [Tooltip("Current Y-axis look offset for the body (used by the Animator).")]
         [SerializeField]
         private float _bodyLookY;
-        [Tooltip("Curve for X-axis body turning.")]
+
+        [Tooltip("Curve controlling how body look responds to rotation rate on the X-axis.")]
         [SerializeField]
         private AnimationCurve _bodyLookXCurve;
 
@@ -254,22 +346,27 @@ namespace TeamZ.Player
         #region Lean Settings
 
         [Header("Player Lean")]
-        [Tooltip("Flag indicating if leaning is enabled.")]
+        [Tooltip("If true, leaning animations are applied based on turning speed.")]
         [SerializeField]
         private bool _enableLean = true;
-        [Tooltip("Delay for leaning.")]
+
+        [Tooltip("Delay before leaning is allowed after certain actions.")]
         [SerializeField]
         private float _leanDelay;
-        [Tooltip("Current value for leaning.")]
+
+        [Tooltip("Current lean value fed to the Animator (e.g. to tilt upper body).")]
         [SerializeField]
         private float _leanValue;
-        [Tooltip("Curve for leaning.")]
+
+        [Tooltip("Curve controlling how the lean reacts to rotation rate.")]
         [SerializeField]
         private AnimationCurve _leanCurve;
-        [Tooltip("Delay for head leaning looks.")]
+
+        [Tooltip("Delay before head look is allowed again after a lean override.")]
         [SerializeField]
         private float _leansHeadLooksDelay;
-        [Tooltip("Flag indicating if an animation clip has ended.")]
+
+        [Tooltip("Flag indicating if an animation clip has finished playing (used for transitions).")]
         [SerializeField]
         private bool _animationClipEnd;
 
@@ -313,6 +410,11 @@ namespace TeamZ.Player
         private Vector3 _moveDirection;
         private Vector3 _previousRotation;
         private Vector3 _velocity;
+
+        private ClimbType _currentClimbType = ClimbType.None;
+        private Vector3 _currentClimbLedgePosition;
+        private Vector3 _currentClimbLedgeNormal;
+        private float _climbStateTime = 0f;
 
         #endregion
 
@@ -560,6 +662,7 @@ namespace TeamZ.Player
         private void SwitchState(AnimationState newState)
         {
             ExitCurrentState();
+            
             EnterState(newState);
         }
 
@@ -570,22 +673,31 @@ namespace TeamZ.Player
         private void EnterState(AnimationState stateToEnter)
         {
             _currentState = stateToEnter;
+
             switch (_currentState)
             {
                 case AnimationState.Base:
                     EnterBaseState();
                     break;
+
                 case AnimationState.Locomotion:
                     EnterLocomotionState();
                     break;
+
                 case AnimationState.Jump:
                     EnterJumpState();
                     break;
+
                 case AnimationState.Fall:
                     EnterFallState();
                     break;
+
                 case AnimationState.Crouch:
                     EnterCrouchState();
+                    break;
+
+                case AnimationState.Climb:
+                    EnterClimbState();
                     break;
             }
         }
@@ -600,11 +712,17 @@ namespace TeamZ.Player
                 case AnimationState.Locomotion:
                     ExitLocomotionState();
                     break;
+
                 case AnimationState.Jump:
                     ExitJumpState();
                     break;
+
                 case AnimationState.Crouch:
                     ExitCrouchState();
+                    break;
+
+                case AnimationState.Climb:
+                    ExitClimbState();
                     break;
             }
         }
@@ -621,14 +739,21 @@ namespace TeamZ.Player
                 case AnimationState.Locomotion:
                     UpdateLocomotionState();
                     break;
+
                 case AnimationState.Jump:
                     UpdateJumpState();
                     break;
+
                 case AnimationState.Fall:
                     UpdateFallState();
                     break;
+
                 case AnimationState.Crouch:
                     UpdateCrouchState();
+                    break;
+
+                case AnimationState.Climb:
+                    UpdateClimbState();
                     break;
             }
         }
@@ -649,7 +774,7 @@ namespace TeamZ.Player
             _animator.SetFloat(_inclineAngleHash, _inclineAngle);
 
             _animator.SetFloat(_moveSpeedHash, _speed2D);
-            _animator.SetInteger(_currentGaitHash, (int) _currentGait);
+            _animator.SetInteger(_currentGaitHash, (int)_currentGait);
 
             _animator.SetFloat(_strafeDirectionXHash, _strafeDirectionX);
             _animator.SetFloat(_strafeDirectionZHash, _strafeDirectionZ);
@@ -1319,6 +1444,160 @@ namespace TeamZ.Player
 
         #endregion
 
+        #region Climb Helpers
+
+        /// <summary>
+        ///     Returns the approximate Y position of the character's feet based on the CharacterController.
+        /// </summary>
+        private float GetCharacterFeetY()
+        {
+            float centreY = transform.position.y + _controller.center.y;
+            float feetY = centreY - (_controller.height * 0.5f) + _controller.radius;
+            return feetY;
+        }
+
+        private bool TryDetectClimb(out ClimbType climbType, out Vector3 ledgePos, out Vector3 ledgeNormal)
+        {
+            climbType = ClimbType.None;
+            ledgePos = Vector3.zero;
+            ledgeNormal = Vector3.zero;
+
+            // 1. Raycast forward to find a vertical surface
+            Vector3 origin = _climbRayOrigin != null
+                ? _climbRayOrigin.position
+                : transform.position + Vector3.up * _capsuleStandingCentre;
+
+            Vector3 direction = transform.forward;
+
+            if (_debugClimbDetection)
+            {
+                Debug.DrawRay(origin, direction * _climbCheckDistance, _debugFrontRayColor);
+            }
+
+            if (!Physics.Raycast(origin, direction, out RaycastHit frontHit, _climbCheckDistance, _climbableLayerMask, QueryTriggerInteraction.Ignore))
+            {
+                if (_debugClimbDetection)
+                {
+                    Debug.Log("TryDetectClimb: no front hit.");
+                }
+                return false;
+            }
+
+            if (_debugClimbDetection)
+            {
+                Debug.Log(
+                    $"TryDetectClimb: frontHit '{frontHit.collider.name}', normal={frontHit.normal}, distance={frontHit.distance:0.00}"
+                );
+            }
+
+            // 2. From above the hit point, cast down to find the top of the obstacle
+            float maxCheckHeight = _capsuleStandingHeight + 5f;
+            
+            Vector3 topCastOrigin = new Vector3(frontHit.point.x, transform.position.y + maxCheckHeight, frontHit.point.z);
+
+            if (_debugClimbDetection)
+            {
+                Debug.DrawRay(topCastOrigin, Vector3.down * (maxCheckHeight + 1f), _debugTopRayColor);
+            }
+            
+            if (!Physics.Raycast(topCastOrigin, Vector3.down, out RaycastHit topHit, maxCheckHeight + 1f, _climbableLayerMask, QueryTriggerInteraction.Ignore))
+            {
+                if (_debugClimbDetection)
+                {
+                    Debug.Log("TryDetectClimb: no top hit.");
+                }
+                
+                return false;
+            }
+
+            if (_debugClimbDetection)
+            {
+                Debug.Log(
+                    $"TryDetectClimb: topHit '{topHit.collider.name}', point={topHit.point}, normal={topHit.normal}"
+                );
+            }
+
+            float characterFeetY = GetCharacterFeetY();
+            float ledgeHeight = topHit.point.y - characterFeetY;
+
+            if (_debugClimbDetection)
+            {
+                Debug.Log(
+                    $"TryDetectClimb: ledgeHeight={ledgeHeight:0.00}, feetY={characterFeetY:0.00}, topY={topHit.point.y:0.00}"
+                );
+            }
+
+            // 3. Height limits
+            if (ledgeHeight < _minClimbHeight)
+            //if (ledgeHeight < _minClimbHeight || ledgeHeight > _maxHighClimbHeight)
+            {
+                if (_debugClimbDetection)
+                {
+                    Debug.Log($"TryDetectClimb: height out of range ({ledgeHeight:0.00}).");
+                }
+                
+                return false;
+            }
+
+            // 4. Check there is space on top for the capsule
+            Vector3 flatNormal = new Vector3(frontHit.normal.x, 0f, frontHit.normal.z).normalized;
+            Vector3 stepForward = -flatNormal * _ledgeForwardOffset;
+
+            Vector3 capsuleCenter = topHit.point + stepForward + Vector3.up * (_capsuleStandingHeight * 0.5f);
+            float halfHeight = (_capsuleStandingHeight * 0.5f) - _controller.radius;
+            Vector3 point1 = capsuleCenter + Vector3.up * halfHeight;
+            Vector3 point2 = capsuleCenter - Vector3.up * halfHeight;
+
+            bool blocked = Physics.CheckCapsule(
+                point1,
+                point2,
+                _controller.radius * 0.9f,
+                _groundLayerMask,
+                QueryTriggerInteraction.Ignore
+            );
+
+            if (_debugClimbDetection)
+            {
+                Debug.DrawLine(point1, point2, blocked ? Color.red : Color.green);
+            }
+
+            if (blocked)
+            {
+                if (_debugClimbDetection)
+                {
+                    Debug.Log("TryDetectClimb: blocked on top, no room for capsule.");
+                }
+                return false;
+            }
+
+            // 5. Classify climb type based on height
+            if (ledgeHeight <= _maxLowClimbHeight)
+            {
+                climbType = ClimbType.Low;
+            }
+            else if(ledgeHeight <= _maxHighClimbHeight)
+            {
+                climbType = ClimbType.High;
+            }
+            else
+            {
+                climbType = ClimbType.Mantle;
+            }
+
+            ledgePos = topHit.point;
+            ledgeNormal = frontHit.normal;
+
+            if (_debugClimbDetection)
+            {
+                Debug.Log($"TryDetectClimb: SUCCESS. Type={climbType}, ledgeHeight={ledgeHeight:0.00}");
+                Debug.DrawRay(ledgePos, Vector3.up * 0.3f, _debugLedgeColor);
+            }
+
+            return true;
+        }
+
+        #endregion
+
         #region Locomotion State
 
         /// <summary>
@@ -1368,11 +1647,20 @@ namespace TeamZ.Player
         }
 
         /// <summary>
-        ///     Moves from the locomotion to the jump state.
+        ///     Moves from the locomotion to the jump or climb state.
         /// </summary>
         private void LocomotionToJumpState()
         {
-            SwitchState(AnimationState.Jump);
+            Debug.Log("LocomotionToJumpState");
+            
+            if (TryDetectClimb(out _currentClimbType, out _currentClimbLedgePosition, out _currentClimbLedgeNormal))
+            {
+                SwitchState(AnimationState.Climb);
+            }
+            else
+            {
+                SwitchState(AnimationState.Jump);
+            }
         }
 
         #endregion
@@ -1402,6 +1690,7 @@ namespace TeamZ.Player
             if (_velocity.y <= 0f)
             {
                 _animator.SetBool(_isJumpingAnimHash, false);
+                
                 SwitchState(AnimationState.Fall);
             }
 
@@ -1544,6 +1833,89 @@ namespace TeamZ.Player
         private void SwitchToLocomotionState()
         {
             DeactivateCrouch();
+            
+            SwitchState(AnimationState.Locomotion);
+        }
+
+        #endregion
+
+        #region Climb State
+
+        private void EnterClimbState()
+        {
+            Debug.Log("EnterClimbState");
+            
+            _climbStateTime = 0f;
+            
+            _isSliding = false;
+            _velocity = Vector3.zero;
+            
+            // Stop locomotion-style input flags so we don't look "stuck"
+            _movementInputTapped = false;
+            _movementInputPressed = false;
+            _movementInputHeld = false;
+            
+            _animator.SetBool(_movementInputTappedHash, false);
+            _animator.SetBool(_movementInputPressedHash, false);
+            _animator.SetBool(_movementInputHeldHash, false);
+
+            // Face the obstacle
+            Vector3 flatNormal = new Vector3(_currentClimbLedgeNormal.x, 0f, _currentClimbLedgeNormal.z).normalized;
+            
+            if (flatNormal.sqrMagnitude > 0.0001f)
+            {
+                Quaternion targetRotation = Quaternion.LookRotation(-flatNormal, Vector3.up);
+                transform.rotation = targetRotation;
+            }
+
+            // Tell animator which climb variant to play
+            _animator.SetBool(_isClimbingHash, true);
+            _animator.SetInteger(_climbTypeHash, (int)_currentClimbType);
+        }
+
+        private void UpdateClimbState()
+        {
+            _climbStateTime += Time.deltaTime;
+
+            UpdateAnimatorController();
+
+            AnimatorStateInfo stateInfo = _animator.GetCurrentAnimatorStateInfo(0);
+
+            // Prevent instant false finish due to normalizedTime=1.0 bug
+            bool legitFinish = 
+                _climbStateTime > 0.1f &&
+                stateInfo.IsTag("Climb") &&
+                stateInfo.normalizedTime >= 0.98f;
+
+            if (legitFinish)
+            {
+                FinishClimb();
+            }
+        }
+        
+        private void ExitClimbState()
+        {
+            Debug.Log("ExitClimbState");
+            
+            _animator.SetBool(_isClimbingHash, false);
+        }
+
+        private void FinishClimb()
+        {
+            Debug.Log("FinishClimb");
+            
+            // Place character on top of the obstacle
+            Vector3 forwardOnLedge = new Vector3(transform.forward.x, 0f, transform.forward.z).normalized;
+            Vector3 targetPosition = _currentClimbLedgePosition + forwardOnLedge * _ledgeForwardOffset;
+
+            // Stand capsule on top
+            targetPosition.y += _capsuleStandingHeight * 0.5f;
+
+            Vector3 delta = targetPosition - transform.position;
+            _controller.Move(delta);
+
+            _currentClimbType = ClimbType.None;
+            
             SwitchState(AnimationState.Locomotion);
         }
 
