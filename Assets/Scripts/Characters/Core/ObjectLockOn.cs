@@ -6,6 +6,7 @@
 // Sample scripts are included only as examples and are not intended as production-ready.
 
 using UnityEngine;
+using TeamZ.Characters.Player;
 
 namespace TeamZ.Characters.Core
 {
@@ -35,12 +36,15 @@ namespace TeamZ.Characters.Core
         /// <param name="otherCollider">The collider to check.</param>
         private void OnTriggerEnter(Collider otherCollider)
         {
-            PlayerAnimationController playerAnimationController = otherCollider.GetComponent<PlayerAnimationController>();
+            var playerContext = otherCollider.GetComponent<PlayerContext>();
 
-            // Only interested in player collisions if they have the controller script.
-            if (playerAnimationController != null)
+            if (playerContext != null)
             {
-                playerAnimationController.AddTargetCandidate(gameObject);
+                var lockOnReceiver = otherCollider.GetComponent<ILockOnReceiver>();
+                if (lockOnReceiver != null)
+                {
+                    lockOnReceiver.AddTargetCandidate(gameObject);
+                }
             }
         }
 
@@ -50,12 +54,16 @@ namespace TeamZ.Characters.Core
         /// <param name="otherCollider">The collider to check.</param>
         private void OnTriggerExit(Collider otherCollider)
         {
-            PlayerAnimationController playerAnimationController = otherCollider.GetComponent<PlayerAnimationController>();
+            var playerContext = otherCollider.GetComponent<PlayerContext>();
 
-            // Only interested in player collisions if they have the controller script.
-            if (playerAnimationController != null)
+            if (playerContext != null)
             {
-                playerAnimationController.RemoveTarget(gameObject);
+                var lockOnReceiver = otherCollider.GetComponent<ILockOnReceiver>();
+                if (lockOnReceiver != null)
+                {
+                    lockOnReceiver.RemoveTarget(gameObject);
+                }
+
                 Highlight(false, false);
             }
         }

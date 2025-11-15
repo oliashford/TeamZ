@@ -5,21 +5,34 @@ using UnityEngine;
 namespace TeamZ.Characters.Player
 {
     [RequireComponent(typeof(CharacterController))]
-    public class PlayerCharacterContext : MonoBehaviour, ICharacterContext
+    public class PlayerContext : MonoBehaviour, ICharacterContext
     {
         [Header("External")]
         [SerializeField] private Animator _animator;
         [SerializeField] private InputReader _inputReader;
         [SerializeField] private CameraController _cameraController;
         [SerializeField] private ClimbDetectorComponent _climbDetectorComponent; 
+        [SerializeField] private GroundDetectorComponent _groundDetectorComponent;
 
         private CharacterController _controller;
         private ClimbDetectorComponent _climbDetector;
+        private CharacterMovementComponent _movement;
+        private GroundDetectorComponent _groundDetector;
 
         public Animator Animator => _animator;
         public Transform Transform => transform;
-        public Vector3 Velocity { get; set; }
-        public bool IsGrounded => _controller.isGrounded;
+        public Vector3 Velocity
+        {
+            get => _movement != null ? _movement.Velocity : Vector3.zero;
+            set
+            {
+                if (_movement != null)
+                {
+                    _movement.Velocity = value;
+                }
+            }
+        }
+        public bool IsGrounded => _groundDetector != null ? _groundDetector.IsGrounded : _controller.isGrounded;
         
         public ClimbDetectorComponent ClimbDetectorComponent => _climbDetector;
 
@@ -41,6 +54,10 @@ namespace TeamZ.Characters.Player
         {
             _controller = GetComponent<CharacterController>();
             _climbDetector = _climbDetectorComponent;
+            _movement = GetComponent<CharacterMovementComponent>();
+            _groundDetector = _groundDetectorComponent != null
+                ? _groundDetectorComponent
+                : GetComponentInChildren<GroundDetectorComponent>();
         }
 
         public void SnapToPosition(Vector3 worldPos)

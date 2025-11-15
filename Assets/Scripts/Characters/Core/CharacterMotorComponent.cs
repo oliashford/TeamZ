@@ -7,7 +7,7 @@ namespace TeamZ.Characters.Core
     /// This lets Player and Enemy share the same movement primitive.
     /// </summary>
     [RequireComponent(typeof(CharacterController))]
-    public class CharacterMotorComponent : MonoBehaviour
+    public class CharacterMovementComponent : MonoBehaviour
     {
         [Tooltip("Optional override for the CharacterController. If null, the component on this GameObject is used.")]
         [SerializeField]

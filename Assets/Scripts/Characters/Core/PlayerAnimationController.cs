@@ -11,6 +11,11 @@ using UnityEngine;
 
 namespace TeamZ.Characters.Core
 {
+    /// <summary>
+    /// LEGACY controller. Values are kept so they can be copied into the
+    /// new PlayerController/State system. Behaviour is being migrated and
+    /// this component will eventually be removed.
+    /// </summary>
     public class PlayerAnimationController : MonoBehaviour
     {
         #region Enum

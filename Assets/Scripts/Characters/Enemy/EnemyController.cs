@@ -12,7 +12,7 @@ namespace TeamZ.Characters.Enemy
     {
         [Tooltip("Motor used for enemy movement (shared implementation with player).")]
         [SerializeField]
-        private CharacterMotorComponent _motor;
+        private CharacterMovementComponent _motor;
 
         private CharacterStateMachine _stateMachine;
 
@@ -20,7 +20,7 @@ namespace TeamZ.Characters.Enemy
         {
             if (_motor == null)
             {
-                _motor = GetComponent<CharacterMotorComponent>();
+                _motor = GetComponent<CharacterMovementComponent>();
             }
 
             _stateMachine = new CharacterStateMachine();
