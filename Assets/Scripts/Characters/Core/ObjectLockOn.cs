@@ -7,7 +7,7 @@
 
 using UnityEngine;
 
-namespace TeamZ.Player
+namespace TeamZ.Characters.Core
 {
     public class ObjectLockOn : MonoBehaviour
     {

@@ -8,7 +8,7 @@
 using TeamZ.InputSystem;
 using UnityEngine;
 
-namespace TeamZ.Player
+namespace TeamZ.Characters.Core
 {
     public class CameraController : MonoBehaviour
     {
