@@ -11,7 +11,7 @@ namespace TeamZ.Characters.Player
         [SerializeField] private Animator _animator;
         [SerializeField] private InputReader _inputReader;
         [SerializeField] private CameraController _cameraController;
-        [SerializeField] private ClimbDetectorComponent _climbDetectorComponent; 
+        [SerializeField] private ClimbDetectorComponent _climbDetectorComponent;
         [SerializeField] private GroundDetectorComponent _groundDetectorComponent;
 
         private CharacterController _controller;
@@ -21,6 +21,7 @@ namespace TeamZ.Characters.Player
 
         public Animator Animator => _animator;
         public Transform Transform => transform;
+
         public Vector3 Velocity
         {
             get => _movement != null ? _movement.Velocity : Vector3.zero;
@@ -32,8 +33,15 @@ namespace TeamZ.Characters.Player
                 }
             }
         }
+
         public bool IsGrounded => _groundDetector != null ? _groundDetector.IsGrounded : _controller.isGrounded;
-        
+
+        /// <summary>Incline angle from GroundDetectorComponent, or 0 if none present.</summary>
+        public float InclineAngle => _groundDetector != null ? _groundDetector.InclineAngle : 0f;
+
+        /// <summary>True when there is not enough headroom to stand (ceiling check).</summary>
+        public bool CannotStandUp => _groundDetector != null && _groundDetector.CannotStandUp;
+
         public ClimbDetectorComponent ClimbDetectorComponent => _climbDetector;
 
         public float CurrentSpeed => new Vector3(Velocity.x, 0f, Velocity.z).magnitude;
@@ -42,7 +50,11 @@ namespace TeamZ.Characters.Player
         {
             get
             {
-                // Example using your camera-relative input
+                if (_inputReader == null || _cameraController == null)
+                {
+                    return Vector3.zero;
+                }
+
                 Vector2 move = _inputReader._moveComposite;
                 Vector3 camFwd = _cameraController.GetCameraForwardZeroedYNormalised();
                 Vector3 camRight = _cameraController.GetCameraRightZeroedYNormalised();
@@ -55,6 +67,8 @@ namespace TeamZ.Characters.Player
             _controller = GetComponent<CharacterController>();
             _climbDetector = _climbDetectorComponent;
             _movement = GetComponent<CharacterMovementComponent>();
+
+            // Prefer explicitly assigned GroundDetectorComponent, otherwise search children.
             _groundDetector = _groundDetectorComponent != null
                 ? _groundDetectorComponent
                 : GetComponentInChildren<GroundDetectorComponent>();

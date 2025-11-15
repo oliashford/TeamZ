@@ -68,6 +68,11 @@ namespace TeamZ.Characters.Core
 
             if (!Physics.Raycast(origin, direction, out RaycastHit frontHit, _probeDistance, _climbMask, QueryTriggerInteraction.Ignore))
             {
+                if (_debugDraw)
+                {
+                    Debug.Log("TryDetectClimb: no front hit.");
+                }
+
                 return false;
             }
 
@@ -81,13 +86,28 @@ namespace TeamZ.Characters.Core
 
             if (!Physics.Raycast(topOrigin, Vector3.down, out RaycastHit topHit, maxHeight + 1f, _climbMask, QueryTriggerInteraction.Ignore))
             {
+                if (_debugDraw)
+                {
+                    Debug.Log("TryDetectClimb: no top hit.");
+                }
+
                 return false;
             }
 
             float ledgeHeight = topHit.point.y - feetY;
 
+            if (_debugDraw)
+            {
+                Debug.Log($"TryDetectClimb: ledgeHeight={ledgeHeight:0.00}, feetY={feetY:0.00}, topY={topHit.point.y:0.00}");
+            }
+
             if (ledgeHeight < _minHeight)
             {
+                if (_debugDraw)
+                {
+                    Debug.Log($"TryDetectClimb: height below min ({ledgeHeight:0.00} < {_minHeight:0.00}).");
+                }
+
                 return false;
             }
 
@@ -110,6 +130,7 @@ namespace TeamZ.Characters.Core
             if (_debugDraw)
             {
                 Debug.DrawRay(ledgePosition, Vector3.up * 0.3f, Color.green);
+                Debug.Log($"TryDetectClimb: SUCCESS - kind={climbKind}, ledgePos={ledgePosition}, ledgeNormal={ledgeNormal}");
             }
 
             return true;

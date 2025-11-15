@@ -15,6 +15,14 @@ namespace TeamZ.Characters.Core
     /// LEGACY controller. Values are kept so they can be copied into the
     /// new PlayerController/State system. Behaviour is being migrated and
     /// this component will eventually be removed.
+    ///
+    /// Current migration status:
+    /// - Locomotion (walk/run/sprint, strafing, forward strafe, locomotion start) -> PlayerLocomotionState
+    /// - Airborne (jump/fall, gravity, falling duration) -> PlayerAirborneState
+    /// - Lock-on targeting -> PlayerController (ILockOnReceiver)
+    /// - Aim/crouch/slide high-level flags and capsule sizing -> PlayerController + PlayerLocomotionState
+    /// - Climb detection and state -> ClimbDetectorComponent + Player.States.ClimbState (work in progress)
+    /// - Head/body look, lean, incline angle -> TODO: to be moved into dedicated components using PlayerContext
     /// </summary>
     public class PlayerAnimationController : MonoBehaviour
     {

@@ -26,12 +26,22 @@ namespace TeamZ.Characters.Player
         [SerializeField] private float _speedChangeDamping = 10f;
         [SerializeField] private float _rotationSmoothing = 10f;
         [SerializeField] private bool _alwaysStrafe = true;
-        [SerializeField] private float _forwardStrafeMinThreshold = 30f;
-        [SerializeField] private float _forwardStrafeMaxThreshold = 150f;
+        [SerializeField] private float _forwardStrafeMinThreshold = -55f;
+        [SerializeField] private float _forwardStrafeMaxThreshold = 125f;
+
+        [Header("Capsule / Crouch")]
+        [SerializeField] private CharacterController _characterController;
+        [SerializeField] private float _capsuleStandingHeight = 1.8f;
+        [SerializeField] private float _capsuleStandingCentre = 0.93f;
+        [SerializeField] private float _capsuleCrouchingHeight = 1.2f;
+        [SerializeField] private float _capsuleCrouchingCentre = 0.6f;
 
         [Header("Airborne Settings (from legacy PlayerAnimationController)")]
         [SerializeField] private float _jumpForce = 10f;
         [SerializeField] private float _gravityMultiplier = 2f;
+
+        [Header("Climb Settings")]
+        [SerializeField] private float _ledgeForwardOffset = 0.4f;
 
         [Header("Lock-on Settings")]
         [SerializeField] private Transform _targetLockOnPos;
@@ -39,6 +49,13 @@ namespace TeamZ.Characters.Player
         private readonly System.Collections.Generic.List<GameObject> _currentTargetCandidates = new System.Collections.Generic.List<GameObject>();
         private GameObject _currentLockOnTarget;
         private bool _isLockedOn;
+
+        // New high-level runtime flags mirrored from legacy controller
+        private bool _isAiming;
+        private bool _isCrouching;
+        private bool _isSliding;
+        private bool _isWalking;
+        private bool _isSprinting;
 
         private CharacterStateMachine _stateMachine;
 
@@ -52,6 +69,11 @@ namespace TeamZ.Characters.Player
             if (_context == null)
             {
                 _context = GetComponent<PlayerContext>();
+            }
+
+            if (_characterController == null)
+            {
+                _characterController = GetComponent<CharacterController>();
             }
 
             if (_targetLockOnPos == null && _context != null)
@@ -83,11 +105,18 @@ namespace TeamZ.Characters.Player
 
             _stateMachine.SetState(locomotion);
 
-            // Subscribe to lock-on toggle from input so we keep legacy behaviour.
             if (_context != null && _context.InputReader != null)
             {
-                _context.InputReader.onLockOnToggled += ToggleLockOn;
-                _context.InputReader.onJumpPerformed += OnJumpPerformed;
+                var input = _context.InputReader;
+                input.onLockOnToggled += ToggleLockOn;
+                input.onJumpPerformed += OnJumpPerformed;
+                input.onAimActivated += OnAimActivated;
+                input.onAimDeactivated += OnAimDeactivated;
+                input.onCrouchActivated += OnCrouchActivated;
+                input.onCrouchDeactivated += OnCrouchDeactivated;
+                input.onWalkToggled += OnWalkToggled;
+                input.onSprintActivated += OnSprintActivated;
+                input.onSprintDeactivated += OnSprintDeactivated;
             }
         }
 
@@ -95,8 +124,16 @@ namespace TeamZ.Characters.Player
         {
             if (_context != null && _context.InputReader != null)
             {
-                _context.InputReader.onLockOnToggled -= ToggleLockOn;
-                _context.InputReader.onJumpPerformed -= OnJumpPerformed;
+                var input = _context.InputReader;
+                input.onLockOnToggled -= ToggleLockOn;
+                input.onJumpPerformed -= OnJumpPerformed;
+                input.onAimActivated -= OnAimActivated;
+                input.onAimDeactivated -= OnAimDeactivated;
+                input.onCrouchActivated -= OnCrouchActivated;
+                input.onCrouchDeactivated -= OnCrouchDeactivated;
+                input.onWalkToggled -= OnWalkToggled;
+                input.onSprintActivated -= OnSprintActivated;
+                input.onSprintDeactivated -= OnSprintDeactivated;
             }
         }
 
@@ -110,8 +147,52 @@ namespace TeamZ.Characters.Player
 
         private void OnJumpPerformed()
         {
-            // When jump is pressed, move to airborne. Climb will be layered on later
-            // using the ClimbDetectorComponent.
+            // First, prefer climb if a climbable ledge is detected in front of the player.
+            var climbDetector = _context != null ? _context.ClimbDetectorComponent : null;
+
+            if (climbDetector != null)
+            {
+                // Approximate feet height using the CharacterController on this object.
+                float feetY = 0f;
+                if (_characterController != null)
+                {
+                    float centreY = transform.position.y + _characterController.center.y;
+                    feetY = centreY - (_characterController.height * 0.5f) + _characterController.radius;
+                }
+                else
+                {
+                    feetY = transform.position.y;
+                }
+
+                if (climbDetector.TryDetectClimb(
+                        feetY,
+                        out ClimbDetectorComponent.ClimbKind kind,
+                        out Vector3 ledgePos,
+                        out Vector3 ledgeNormal) &&
+                    kind != ClimbDetectorComponent.ClimbKind.None)
+                {
+                    // Drive animator climb type parameter from detected climb kind.
+                    if (_context != null && _context.Animator != null)
+                    {
+                        int climbTypeHash = Animator.StringToHash("ClimbType");
+                        _context.Animator.SetInteger(climbTypeHash, (int)kind);
+                    }
+
+                    var climbState = new States.ClimbState(
+                        _context,
+                        _motor,
+                        _stateMachine,
+                        this,
+                        ledgePos,
+                        ledgeNormal,
+                        (int)kind);
+
+                    _stateMachine.SetState(climbState);
+                    return;
+                }
+            }
+
+            // If we didn't find a climb, fall back to airborne behaviour.
             var airborne = new States.PlayerAirborneState(
                 _context,
                 _motor,
@@ -121,6 +202,91 @@ namespace TeamZ.Characters.Player
                 this);
 
             _stateMachine.SetState(airborne);
+        }
+
+        private void OnAimActivated()
+        {
+            _isAiming = true;
+        }
+
+        private void OnAimDeactivated()
+        {
+            _isAiming = false;
+        }
+
+        private void OnCrouchActivated()
+        {
+            // Mirror legacy: only crouch if grounded.
+            if (_context != null && _context.IsGrounded)
+            {
+                SetCrouch(true);
+            }
+        }
+
+        private void OnCrouchDeactivated()
+        {
+            // Only stand up if there is enough headroom and we are not sliding, mirroring legacy controller.
+            bool cannotStand = _context != null && _context.CannotStandUp;
+            if (!cannotStand && !_isSliding)
+            {
+                SetCrouch(false);
+            }
+        }
+
+        private void OnWalkToggled()
+        {
+            // Mirror legacy EnableWalk: only allow walk when grounded and not sprinting.
+            bool grounded = _context != null && _context.IsGrounded;
+            _isWalking = !_isWalking && grounded && !_isSprinting;
+        }
+
+        private void OnSprintActivated()
+        {
+            // Mirror legacy ActivateSprint: cancel walk, sprint only when not crouching.
+            if (!_isCrouching)
+            {
+                _isWalking = false;
+                _isSprinting = true;
+            }
+        }
+
+        private void OnSprintDeactivated()
+        {
+            _isSprinting = false;
+        }
+
+        private void SetCrouch(bool crouch)
+        {
+            _isCrouching = crouch;
+
+            if (_characterController == null)
+            {
+                _characterController = GetComponent<CharacterController>();
+            }
+
+            if (_characterController != null)
+            {
+                if (crouch)
+                {
+                    _characterController.center = new Vector3(0f, _capsuleCrouchingCentre, 0f);
+                    _characterController.height = _capsuleCrouchingHeight;
+                }
+                else
+                {
+                    _characterController.center = new Vector3(0f, _capsuleStandingCentre, 0f);
+                    _characterController.height = _capsuleStandingHeight;
+                }
+            }
+        }
+
+        public void ActivateSliding()
+        {
+            _isSliding = true;
+        }
+
+        public void DeactivateSliding()
+        {
+            _isSliding = false;
         }
 
         #region ILockOnReceiver
@@ -264,6 +430,14 @@ namespace TeamZ.Characters.Player
         public float JumpForce => _jumpForce;
         public float GravityMultiplier => _gravityMultiplier;
 
-        #endregion
+        public bool IsAiming => _isAiming;
+        public bool IsCrouching => _isCrouching;
+        public bool IsSliding => _isSliding;
+        public bool IsWalking => _isWalking;
+        public bool IsSprinting => _isSprinting;
+
+        // Expose ledge offset so ClimbState can mirror legacy placement
+        public float LedgeForwardOffset => _ledgeForwardOffset;
     }
 }
+#endregion

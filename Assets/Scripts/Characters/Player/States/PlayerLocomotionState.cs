@@ -30,8 +30,8 @@ namespace TeamZ.Characters.Player.States
         private readonly float _forwardStrafeMaxThreshold;
 
         // Simple locomotion state
-        private bool _isWalking;
-        private bool _isSprinting;
+        // private bool _isWalking;
+        // private bool _isSprinting;
         private bool _isStrafing;
 
         private Vector3 _targetVelocity;
@@ -64,6 +64,8 @@ namespace TeamZ.Characters.Player.States
 
         // New: legacy-style turning-in-place flag
         private bool _isTurningInPlace;
+        // Legacy-style animator hash for IsStrafing float parameter
+        private readonly int _isStrafingHash = Animator.StringToHash("IsStrafing");
 
         // legacy-style movement direction in world space
         private Vector3 _moveDirection;
@@ -106,14 +108,6 @@ namespace TeamZ.Characters.Player.States
             // Ensure we don't start in a falling pose when entering locomotion.
             _animator.SetBool("IsJumping", false);
             _animator.SetFloat("FallingDuration", 0f);
-
-            // Subscribe to input events just like the legacy controller did.
-            if (_input != null)
-            {
-                _input.onWalkToggled += OnWalkToggled;
-                _input.onSprintActivated += OnSprintActivated;
-                _input.onSprintDeactivated += OnSprintDeactivated;
-            }
         }
 
         public void Tick()
@@ -126,39 +120,12 @@ namespace TeamZ.Characters.Player.States
 
         public void Exit()
         {
-            if (_input != null)
-            {
-                _input.onWalkToggled -= OnWalkToggled;
-                _input.onSprintActivated -= OnSprintActivated;
-                _input.onSprintDeactivated -= OnSprintDeactivated;
-            }
-        }
-
-        private void OnWalkToggled()
-        {
-            _isWalking = !_isWalking && _context.IsGrounded && !_isSprinting;
-        }
-
-        private void OnSprintActivated()
-        {
-            if (!_isWalking)
-            {
-                _isSprinting = true;
-                _isStrafing = false;
-            }
-        }
-
-        private void OnSprintDeactivated()
-        {
-            _isSprinting = false;
-
-            bool isLockedOn = _owner != null && _owner.IsLockedOn;
-            _isStrafing = _alwaysStrafe || isLockedOn;
+            // Nothing to clean up yet; high-level events are owned by PlayerController.
         }
 
         private void UpdateStateFlags()
         {
-            // Flags are now driven by events; here we may add extra logic later if needed.
+            // Flags are now driven by events on PlayerController; here we may add extra logic later if needed.
         }
 
         private void CalculateInputAndStarting()
@@ -205,7 +172,21 @@ namespace TeamZ.Characters.Player.States
                 ? Vector3.SignedAngle(characterForward, desired, Vector3.up)
                 : 0f;
 
-            // Shuffle / strafe values mirror legacy FaceMoveDirection behaviour.
+            bool isLockedOn = _owner != null && _owner.IsLockedOn;
+            bool isAiming = _owner != null && _owner.IsAiming;
+            bool isSprinting = _owner != null && _owner.IsSprinting;
+
+            // Sprinting forces non-strafe locomotion, mirroring legacy ActivateSprint behaviour.
+            if (isSprinting)
+            {
+                _isStrafing = false;
+            }
+            else
+            {
+                // Shuffle / strafe values mirror legacy FaceMoveDirection behaviour.
+                _isStrafing = _alwaysStrafe || isAiming || isLockedOn;
+            }
+
             if (_isStrafing)
             {
                 if (desired.magnitude > 0.01f)
@@ -312,14 +293,17 @@ namespace TeamZ.Characters.Player.States
             float targetMaxSpeed;
             if (!_context.IsGrounded)
             {
-                // Legacy used _currentMaxSpeed here; we approximate by preserving current horizontal speed.
                 targetMaxSpeed = new Vector3(_context.Velocity.x, 0f, _context.Velocity.z).magnitude;
             }
-            else if (_isSprinting)
+            else if (_owner != null && _owner.IsCrouching)
+            {
+                targetMaxSpeed = _walkSpeed;
+            }
+            else if (_owner != null && _owner.IsSprinting)
             {
                 targetMaxSpeed = _sprintSpeed;
             }
-            else if (_isWalking)
+            else if (_owner != null && _owner.IsWalking)
             {
                 targetMaxSpeed = _walkSpeed;
             }
@@ -355,9 +339,7 @@ namespace TeamZ.Characters.Player.States
             Vector3 directionForward = new Vector3(_moveDirection.x, 0f, _moveDirection.z).normalized;
 
             // Reuse cameraForward from above calculation when available; if input was null, recompute it safely here.
-            Vector3 cameraForwardForFacing = _input != null
-                ? _context.CameraController.GetCameraForwardZeroedYNormalised()
-                : _context.CameraController.GetCameraForwardZeroedYNormalised();
+            Vector3 cameraForwardForFacing = _context.CameraController.GetCameraForwardZeroedYNormalised();
 
             Quaternion strafingTargetRotation = cameraForwardForFacing != Vector3.zero
                 ? Quaternion.LookRotation(cameraForwardForFacing)
@@ -476,34 +458,33 @@ namespace TeamZ.Characters.Player.States
 
             _animator.SetInteger("CurrentGait", gait);
 
-            bool isGrounded = _context.IsGrounded;
-            bool hasMoveInput = _context.MoveInputWorld.sqrMagnitude > 0.0001f;
-            bool isStopped = !hasMoveInput && speed2D < 0.5f;
+            // Ground / incline mirrors
+            _animator.SetBool("IsGrounded", _context.IsGrounded);
+            _animator.SetFloat("InclineAngle", _context.InclineAngle);
 
-            _animator.SetBool("IsGrounded", isGrounded);
-            _animator.SetBool("IsWalking", _isWalking && speed2D > 0.1f);
-            _animator.SetBool("IsStopped", isStopped);
+            // Strafing related
+            _animator.SetFloat("StrafeDirectionX", _strafeDirectionX);
+            _animator.SetFloat("StrafeDirectionZ", _strafeDirectionZ);
+            _animator.SetFloat("ForwardStrafe", _forwardStrafe);
+            _animator.SetFloat("CameraRotationOffset", _cameraRotationOffset);
+            // Legacy uses a float parameter for IsStrafing (0 or 1), so we mirror that here.
+            _animator.SetFloat(_isStrafingHash, _isStrafing ? 1f : 0f);
+            _animator.SetBool("IsTurningInPlace", _isTurningInPlace);
 
-            // Movement input mode flags mirroring legacy controller.
+            // Shuffle / input tap states
             _animator.SetBool("MovementInputHeld", _movementInputHeld);
             _animator.SetBool("MovementInputPressed", _movementInputPressed);
             _animator.SetBool("MovementInputTapped", _movementInputTapped);
-
-            // Legacy uses a float 0/1 for IsStrafing.
-            _animator.SetFloat("IsStrafing", _isStrafing ? 1f : 0f);
-
-            // Shuffle/strafe parameters used by locomotion blend tree.
             _animator.SetFloat("ShuffleDirectionX", _shuffleDirectionX);
             _animator.SetFloat("ShuffleDirectionZ", _shuffleDirectionZ);
-            _animator.SetFloat("StrafeDirectionX", _strafeDirectionX);
-            _animator.SetFloat("StrafeDirectionZ", _strafeDirectionZ);
 
-            // Forward strafe and camera rotation offset (for turning/aiming blends).
-            _animator.SetFloat("ForwardStrafe", _forwardStrafe);
-            _animator.SetFloat("CameraRotationOffset", _cameraRotationOffset);
+            // Crouch
+            bool isCrouching = _owner != null && _owner.IsCrouching;
+            _animator.SetBool("IsCrouching", isCrouching);
 
-            // New: explicitly tell the Animator when we are turning in place (for shuffle/turn clips).
-            _animator.SetBool("IsTurningInPlace", _isTurningInPlace);
+            // Stopped flag mirrors legacy logic
+            bool isStopped = _moveDirection.magnitude == 0 && speed2D < 0.5f;
+            _animator.SetBool("IsStopped", isStopped);
         }
     }
 }
