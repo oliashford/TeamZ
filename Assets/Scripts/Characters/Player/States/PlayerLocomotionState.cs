@@ -24,6 +24,11 @@ namespace TeamZ.Characters.Player.States
         private readonly float _speedChangeDamping;
         private readonly float _rotationSmoothing;
 
+        // New: legacy-style config flags
+        private readonly bool _alwaysStrafe;
+        private readonly float _forwardStrafeMinThreshold;
+        private readonly float _forwardStrafeMaxThreshold;
+
         // Simple locomotion state
         private bool _isWalking;
         private bool _isSprinting;
@@ -71,6 +76,9 @@ namespace TeamZ.Characters.Player.States
             float sprintSpeed,
             float speedChangeDamping,
             float rotationSmoothing,
+            bool alwaysStrafe,
+            float forwardStrafeMinThreshold,
+            float forwardStrafeMaxThreshold,
             PlayerController owner)
         {
             _context = context;
@@ -84,12 +92,16 @@ namespace TeamZ.Characters.Player.States
             _sprintSpeed = sprintSpeed;
             _speedChangeDamping = speedChangeDamping;
             _rotationSmoothing = rotationSmoothing;
+
+            _alwaysStrafe = alwaysStrafe;
+            _forwardStrafeMinThreshold = forwardStrafeMinThreshold;
+            _forwardStrafeMaxThreshold = forwardStrafeMaxThreshold;
         }
 
         public void Enter()
         {
             // Initial flags roughly matching PlayerAnimationController default
-            _isStrafing = true; // respects camera-relative strafing by default
+            _isStrafing = _alwaysStrafe; // respects camera-relative strafing by default
 
             // Ensure we don't start in a falling pose when entering locomotion.
             _animator.SetBool("IsJumping", false);
@@ -140,10 +152,8 @@ namespace TeamZ.Characters.Player.States
         {
             _isSprinting = false;
 
-            bool alwaysStrafe = true;
             bool isLockedOn = _owner != null && _owner.IsLockedOn;
-
-            _isStrafing = alwaysStrafe || isLockedOn;
+            _isStrafing = _alwaysStrafe || isLockedOn;
         }
 
         private void UpdateStateFlags()
@@ -344,9 +354,13 @@ namespace TeamZ.Characters.Player.States
             Vector3 characterRight = new Vector3(_context.Transform.right.x, 0f, _context.Transform.right.z).normalized;
             Vector3 directionForward = new Vector3(_moveDirection.x, 0f, _moveDirection.z).normalized;
 
-            Vector3 cameraForward = _context.CameraController.GetCameraForwardZeroedYNormalised();
-            Quaternion strafingTargetRotation = cameraForward != Vector3.zero
-                ? Quaternion.LookRotation(cameraForward)
+            // Reuse cameraForward from above calculation when available; if input was null, recompute it safely here.
+            Vector3 cameraForwardForFacing = _input != null
+                ? _context.CameraController.GetCameraForwardZeroedYNormalised()
+                : _context.CameraController.GetCameraForwardZeroedYNormalised();
+
+            Quaternion strafingTargetRotation = cameraForwardForFacing != Vector3.zero
+                ? Quaternion.LookRotation(cameraForwardForFacing)
                 : _context.Transform.rotation;
 
             _strafeAngle = characterForward != directionForward && directionForward != Vector3.zero
@@ -357,7 +371,7 @@ namespace TeamZ.Characters.Player.States
             {
                 if (_moveDirection.magnitude > 0.01f)
                 {
-                    if (cameraForward != Vector3.zero)
+                    if (cameraForwardForFacing != Vector3.zero)
                     {
                         // Shuffle directions: immediate dot products, then held.
                         _shuffleDirectionZ = Vector3.Dot(characterForward, directionForward);
@@ -371,8 +385,9 @@ namespace TeamZ.Characters.Player.States
                         // Camera rotation offset returns to 0 while moving.
                         _cameraRotationOffset = Mathf.Lerp(_cameraRotationOffset, 0f, _rotationSmoothing * Time.deltaTime);
 
-                        // Forward strafe based on strafe angle thresholds.
-                        float targetValue = _strafeAngle > -55.0f && _strafeAngle < 125.0f ? 1f : 0f;
+                        // Forward strafe based on configurable strafe angle thresholds.
+                        float targetValue =
+                            _strafeAngle > _forwardStrafeMinThreshold && _strafeAngle < _forwardStrafeMaxThreshold ? 1f : 0f;
 
                         if (Mathf.Abs(_forwardStrafe - targetValue) <= 0.001f)
                         {
@@ -401,9 +416,9 @@ namespace TeamZ.Characters.Player.States
                     float t = 20f * Time.deltaTime;
                     float newOffset = 0f;
 
-                    if (characterForward != cameraForward && cameraForward != Vector3.zero)
+                    if (characterForward != cameraForwardForFacing && cameraForwardForFacing != Vector3.zero)
                     {
-                        newOffset = Vector3.SignedAngle(characterForward, cameraForward, Vector3.up);
+                        newOffset = Vector3.SignedAngle(characterForward, cameraForwardForFacing, Vector3.up);
                     }
 
                     _cameraRotationOffset = Mathf.Lerp(_cameraRotationOffset, newOffset, t);

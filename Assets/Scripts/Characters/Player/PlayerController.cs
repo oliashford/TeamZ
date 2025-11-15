@@ -25,6 +25,9 @@ namespace TeamZ.Characters.Player
         [SerializeField] private float _sprintSpeed = 7f;
         [SerializeField] private float _speedChangeDamping = 10f;
         [SerializeField] private float _rotationSmoothing = 10f;
+        [SerializeField] private bool _alwaysStrafe = true;
+        [SerializeField] private float _forwardStrafeMinThreshold = 30f;
+        [SerializeField] private float _forwardStrafeMaxThreshold = 150f;
 
         [Header("Airborne Settings (from legacy PlayerAnimationController)")]
         [SerializeField] private float _jumpForce = 10f;
@@ -73,6 +76,9 @@ namespace TeamZ.Characters.Player
                 _sprintSpeed,
                 _speedChangeDamping,
                 _rotationSmoothing,
+                _alwaysStrafe,
+                _forwardStrafeMinThreshold,
+                _forwardStrafeMaxThreshold,
                 this);
 
             _stateMachine.SetState(locomotion);
@@ -251,6 +257,9 @@ namespace TeamZ.Characters.Player
         public float SprintSpeed => _sprintSpeed;
         public float SpeedChangeDamping => _speedChangeDamping;
         public float RotationSmoothing => _rotationSmoothing;
+        public bool AlwaysStrafe => _alwaysStrafe;
+        public float ForwardStrafeMinThreshold => _forwardStrafeMinThreshold;
+        public float ForwardStrafeMaxThreshold => _forwardStrafeMaxThreshold;
 
         public float JumpForce => _jumpForce;
         public float GravityMultiplier => _gravityMultiplier;

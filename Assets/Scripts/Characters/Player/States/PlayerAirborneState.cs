@@ -144,6 +144,9 @@ namespace TeamZ.Characters.Player.States
                         _owner.SprintSpeed,
                         _owner.SpeedChangeDamping,
                         _owner.RotationSmoothing,
+                        _owner.AlwaysStrafe,
+                        _owner.ForwardStrafeMinThreshold,
+                        _owner.ForwardStrafeMaxThreshold,
                         _owner));
             }
         }
@@ -193,4 +196,3 @@ namespace TeamZ.Characters.Player.States
         }
     }
 }
-
