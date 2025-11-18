@@ -17,9 +17,10 @@ namespace TeamZ.Weapons
         [SerializeField] private Transform _muzzle;
 
         [Header("Visual Effects")]
-        [Tooltip("Line renderer for displaying bullet tracers")]
-        [SerializeField] private LineRenderer _tracerLine;
-        [Tooltip("Duration to show the tracer after firing")]
+        [Tooltip("Prefab containing a LineRenderer component for bullet tracers")]
+        [SerializeField] private GameObject _tracerPrefab;
+        
+        [Tooltip("Duration before destroying tracer objects")]
         [SerializeField] private float _tracerDuration = 0.15f;
 
         [Tooltip("Muzzle flash effect spawned when firing")]
@@ -33,8 +34,6 @@ namespace TeamZ.Weapons
         public Transform LeftHandIkTarget => _leftHandIkTarget;
         public Transform Muzzle => _muzzle;
 
-        private float _tracerTimer;
-        private bool _tracerActive;
 
         public void Initialize(WeaponConfig config)
         {
@@ -47,16 +46,8 @@ namespace TeamZ.Weapons
             {
                 _audioSource = GetComponent<AudioSource>();
             }
-
-            // Do not force-disable the tracer here; let the prefab control its initial state.
         }
 
-        private void Update()
-        {
-            // No automatic tracer disabling; the LineRenderer will simply be updated
-            // on each fire call. If you want time-based hiding later, we can reintroduce
-            // a timer, but for now we keep it simple and predictable.
-        }
 
         public void Fire(Ray aimRay, bool isAiming)
         {
@@ -111,17 +102,30 @@ namespace TeamZ.Weapons
 
         private void DrawTracer(Vector3 start, Vector3 end)
         {
-            if (_tracerLine == null)
+            if (_tracerPrefab == null)
             {
                 // Fallback debug-only line in Scene view
                 Debug.DrawLine(start, end, Color.cyan, 0.2f);
                 return;
             }
 
-            _tracerLine.positionCount = 2;
-            _tracerLine.SetPosition(0, start);
-            _tracerLine.SetPosition(1, end);
-            _tracerLine.enabled = true;
+            // Instantiate the tracer prefab and configure its LineRenderer
+            GameObject tracerObj = Object.Instantiate(_tracerPrefab);
+            LineRenderer lineRenderer = tracerObj.GetComponent<LineRenderer>();
+            
+            if (lineRenderer != null)
+            {
+                lineRenderer.positionCount = 2;
+                lineRenderer.SetPosition(0, start);
+                lineRenderer.SetPosition(1, end);
+            }
+            else
+            {
+                Debug.LogWarning("Tracer prefab does not have a LineRenderer component.", this);
+            }
+
+            // Destroy the tracer after the specified duration
+            Object.Destroy(tracerObj, _tracerDuration);
         }
 
         private void PlayMuzzleFlash()
