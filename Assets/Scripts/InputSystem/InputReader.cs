@@ -1,10 +1,3 @@
-// Copyright (c) 2024 Synty Studios Limited. All rights reserved.
-//
-// Use of this software is subject to the terms and conditions of the Synty Studios End User Licence Agreement (EULA)
-// available at: https://syntystore.com/pages/end-user-licence-agreement
-//
-// Sample scripts are included only as examples and are not intended as production-ready.
-
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -28,8 +21,6 @@ namespace TeamZ.InputSystem
         public Action onCrouchDeactivated;
 
         public Action onJumpPerformed;
-
-        public Action onLockOnToggled;
 
         public Action onSprintActivated;
         public Action onSprintDeactivated;
@@ -151,21 +142,6 @@ namespace TeamZ.InputSystem
             }
         }
 
-        /// <summary>
-        ///     Defines the action to perform when the OnLockOn callback is called.
-        /// </summary>
-        /// <param name="context">The context of the callback.</param>
-        public void OnLockOn(InputAction.CallbackContext context)
-        {
-            if (!context.performed)
-            {
-                return;
-            }
-
-            onLockOnToggled?.Invoke();
-            onSprintDeactivated?.Invoke();
-        }
-
         public void OnFire(InputAction.CallbackContext context)
         {
             if (!context.performed)
@@ -177,3 +153,4 @@ namespace TeamZ.InputSystem
         }
     }
 }
+

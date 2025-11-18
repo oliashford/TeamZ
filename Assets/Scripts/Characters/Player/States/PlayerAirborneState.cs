@@ -10,7 +10,7 @@ namespace TeamZ.Characters.Player.States
     /// </summary>
     public class PlayerAirborneState : ICharacterState
     {
-        private readonly PlayerContext _context;
+        private readonly PlayerContext _playerContext;
         private readonly MovementComponent _motor;
         private readonly Animator _animator;
         private readonly InputReader _input;
@@ -31,7 +31,7 @@ namespace TeamZ.Characters.Player.States
             float gravityMultiplier,
             PlayerController owner)
         {
-            _context = context;
+            _playerContext = context;
             _motor = motor;
             _animator = context.Animator;
             _input = context.InputReader;
@@ -45,7 +45,7 @@ namespace TeamZ.Characters.Player.States
         public void Enter()
         {
             // Start in jump phase if we are grounded when entering, otherwise treat as fall.
-            if (_context.IsGrounded)
+            if (_playerContext.IsGrounded)
             {
                 EnterJumpPhase();
             }
@@ -80,9 +80,9 @@ namespace TeamZ.Characters.Player.States
             // Raise the jump bool and apply upward force (mirrors legacy EnterJumpState).
             _animator.SetBool("IsJumping", true);
 
-            Vector3 vel = _context.Velocity;
+            Vector3 vel = _playerContext.Velocity;
             vel.y = _jumpForce;
-            _context.Velocity = vel;
+            _playerContext.Velocity = vel;
             _motor.Velocity = vel;
         }
 
@@ -91,7 +91,7 @@ namespace TeamZ.Characters.Player.States
             // Apply gravity.
             ApplyGravity();
 
-            Vector3 vel = _context.Velocity;
+            Vector3 vel = _playerContext.Velocity;
 
             // When upward velocity has gone non-positive, transition to falling.
             if (vel.y <= 0f)
@@ -112,12 +112,12 @@ namespace TeamZ.Characters.Player.States
             _isJumpingPhase = false;
             _fallStartTime = Time.time;
 
-            Vector3 vel = _context.Velocity;
+            Vector3 vel = _playerContext.Velocity;
             if (resetVerticalVelocity)
             {
                 vel.y = 0f;
             }
-            _context.Velocity = vel;
+            _playerContext.Velocity = vel;
             _motor.Velocity = vel;
         }
 
@@ -133,11 +133,11 @@ namespace TeamZ.Characters.Player.States
             _motor.Move(_motor.Velocity * Time.deltaTime);
 
             // When grounded again, return to locomotion.
-            if (_context.IsGrounded)
+            if (_playerContext.IsGrounded)
             {
                 _stateMachine.SetState(
                     new PlayerLocomotionState(
-                        _context,
+                        _playerContext,
                         _motor,
                         _owner.WalkSpeed,
                         _owner.RunSpeed,
@@ -153,13 +153,13 @@ namespace TeamZ.Characters.Player.States
 
         private void ApplyGravity()
         {
-            Vector3 vel = _context.Velocity;
+            Vector3 vel = _playerContext.Velocity;
 
             if (vel.y > Physics.gravity.y)
             {
                 vel.y += Physics.gravity.y * _gravityMultiplier * Time.deltaTime;
 
-                _context.Velocity = vel;
+                _playerContext.Velocity = vel;
                 _motor.Velocity = vel;
             }
         }
@@ -169,13 +169,13 @@ namespace TeamZ.Characters.Player.States
         /// </summary>
         private void ApplyHorizontalMovement()
         {
-            Vector3 moveInputWorld = _context.MoveInputWorld;
+            Vector3 moveInputWorld = _playerContext.MoveInputWorld;
 
             // Use run speed as horizontal speed while airborne; mirrors legacy behaviour
             // where _targetMaxSpeed was generally maintained.
             float horizontalSpeed = _owner.RunSpeed;
 
-            Vector3 current = _context.Velocity;
+            Vector3 current = _playerContext.Velocity;
             Vector3 target;
             target.x = moveInputWorld.x * horizontalSpeed;
             target.y = current.y;
@@ -184,14 +184,14 @@ namespace TeamZ.Characters.Player.States
             current.x = Mathf.Lerp(current.x, target.x, _owner.SpeedChangeDamping * Time.deltaTime);
             current.z = Mathf.Lerp(current.z, target.z, _owner.SpeedChangeDamping * Time.deltaTime);
 
-            _context.Velocity = current;
+            _playerContext.Velocity = current;
             _motor.Velocity = current;
 
             // Face movement direction while airborne.
             Vector3 flatDir = new Vector3(current.x, 0f, current.z);
             if (flatDir.sqrMagnitude > 0.001f)
             {
-                _context.FaceDirection(flatDir);
+                _playerContext.FaceDirection(flatDir);
             }
         }
     }

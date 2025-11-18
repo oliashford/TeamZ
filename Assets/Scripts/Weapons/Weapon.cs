@@ -2,35 +2,31 @@ using UnityEngine;
 
 namespace TeamZ.Weapons
 {
-    /// <summary>
-    /// Simple hitscan weapon used by <see cref="TeamZ.Characters.Core.WeaponHandlerComponent"/>.
-    /// This focuses on runtime behaviour and leaves visuals / VFX to be added later.
-    /// </summary>
+    // Simple hitscan weapon used by TeamZ.Characters.Core.WeaponHandlerComponent.
+    // This focuses on runtime behaviour and leaves visuals / VFX to be added later.
     public class Weapon : MonoBehaviour
     {
         [SerializeField] private WeaponConfig _config;
 
         [Header("Optional IK Targets")]
-        [Tooltip("Target used by IK for the character's left hand.")]
+        [Tooltip("Transform target for character's left hand IK")]
         [SerializeField] private Transform _leftHandIkTarget;
 
         [Header("Muzzle")]
-        [Tooltip("Barrel tip used for visual alignment and tracers.")]
+        [Tooltip("Barrel tip position for bullet origin and visual effects")]
         [SerializeField] private Transform _muzzle;
 
         [Header("Visual Effects")]
-        [Tooltip("Optional line renderer used to display a brief bullet tracer.")]
+        [Tooltip("Line renderer for displaying bullet tracers")]
         [SerializeField] private LineRenderer _tracerLine;
-        [Tooltip("Duration, in seconds, to show the tracer after firing.")]
-        [SerializeField] private float _tracerDuration = 0.15f; // increased for visibility while tuning
+        [Tooltip("Duration to show the tracer after firing")]
+        [SerializeField] private float _tracerDuration = 0.15f;
 
-        [Tooltip("Optional muzzle flash prefab instantiated at the muzzle when firing.")]
+        [Tooltip("Muzzle flash effect spawned when firing")]
         [SerializeField] private GameObject _muzzleFlashPrefab;
 
         [Header("Audio")]
-        [Tooltip("AudioSource used to play firing sounds.")]
         [SerializeField] private AudioSource _audioSource;
-        [Tooltip("Sound played when this weapon fires.")]
         [SerializeField] private AudioClip _fireClip;
 
         public WeaponConfig Config => _config;

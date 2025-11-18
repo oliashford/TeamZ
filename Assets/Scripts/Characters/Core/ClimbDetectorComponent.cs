@@ -9,31 +9,29 @@ namespace TeamZ.Characters.Core
     /// </summary>
     public class ClimbDetectorComponent : MonoBehaviour
     {
-        [Tooltip("Origin for the forward climb ray (e.g. chest height).")]
+        [Tooltip("Origin for the forward climb ray (e.g. chest height)")]
         [SerializeField]
         private Transform _rayOrigin;
 
-        [Tooltip("How far forward to probe for climbable obstacles.")]
+        [Tooltip("How far forward to probe for climbable obstacles")]
         [SerializeField]
         private float _probeDistance = 1.0f;
 
-        [Tooltip("Minimum height above feet for a ledge to be climbable.")]
+        [Tooltip("Minimum height above feet for a ledge to be climbable")]
         [SerializeField]
         private float _minHeight = 0.3f;
 
-        [Tooltip("Maximum height above feet for a low climb / vault.")]
+        [Tooltip("Maximum height above feet for a low climb/vault")]
         [SerializeField]
         private float _maxLowHeight = 1.2f;
 
-        [Tooltip("Maximum height above feet for a high climb (beyond this is mantle or too high).")]
+        [Tooltip("Maximum height above feet for a high climb (beyond this is mantle)")]
         [SerializeField]
         private float _maxHighHeight = 2.0f;
 
-        [Tooltip("Layers that are considered climbable surfaces.")]
         [SerializeField]
         private LayerMask _climbMask;
 
-        [Tooltip("Enable debug drawing for climb probes.")]
         [SerializeField]
         private bool _debugDraw;
 
@@ -48,11 +46,7 @@ namespace TeamZ.Characters.Core
         /// <summary>
         /// Performs a climb probe and returns the result.
         /// </summary>
-        public bool TryDetectClimb(
-            float feetY,
-            out ClimbKind climbKind,
-            out Vector3 ledgePosition,
-            out Vector3 ledgeNormal)
+        public bool TryDetectClimb(float feetY, out ClimbKind climbKind, out Vector3 ledgePosition, out Vector3 ledgeNormal) 
         {
             climbKind = ClimbKind.None;
             ledgePosition = Vector3.zero;
@@ -77,6 +71,7 @@ namespace TeamZ.Characters.Core
             }
 
             float maxHeight = 4.0f;
+            
             Vector3 topOrigin = new Vector3(frontHit.point.x, transform.position.y + maxHeight, frontHit.point.z);
 
             if (_debugDraw)

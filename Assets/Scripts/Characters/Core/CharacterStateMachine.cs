@@ -3,9 +3,8 @@ using UnityEngine;
 
 namespace TeamZ.Characters.Core
 {
-    /// <summary>
-    /// Simple, generic state machine for character logic.
-    /// </summary>
+    // Simple, generic state machine for character logic.
+    
     public class CharacterStateMachine
     {
         public ICharacterState CurrentState { get; private set; }
@@ -20,8 +19,11 @@ namespace TeamZ.Characters.Core
             }
 
             CurrentState?.Exit();
+            
             CurrentState = newState;
+            
             CurrentState?.Enter();
+            
             OnStateChanged?.Invoke(CurrentState);
         }
 

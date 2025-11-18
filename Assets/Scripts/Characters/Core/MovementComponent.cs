@@ -9,7 +9,6 @@ namespace TeamZ.Characters.Core
     [RequireComponent(typeof(CharacterController))]
     public class MovementComponent : MonoBehaviour
     {
-        [Tooltip("Optional override for the CharacterController. If null, the component on this GameObject is used.")]
         [SerializeField]
         private CharacterController _characterController;
 

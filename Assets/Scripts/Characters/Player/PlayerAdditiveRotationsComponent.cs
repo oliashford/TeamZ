@@ -1,37 +1,45 @@
 using UnityEngine;
-using TeamZ.Characters.Core;
 
 namespace TeamZ.Characters.Player
 {
-    /// <summary>
-    /// Recreates the head look, body look and lean rotational additives
-    /// from the legacy PlayerAnimationController, but as a standalone
-    /// component driven by PlayerContext.
-    /// </summary>
+    // Recreates the head look, body look and lean rotational additives
+    // from the legacy PlayerAnimationController, but as a standalone
+    // component driven by PlayerContext.
+    [RequireComponent(typeof(PlayerContext))]
     [DisallowMultipleComponent]
     public class PlayerAdditiveRotationsComponent : MonoBehaviour
     {
-        [Header("External")]
-        [SerializeField] private PlayerContext _context;
-
-        [Header("Settings (copied from PlayerAnimationController)")]
+        [Header("Head Turn")]
         [SerializeField] private bool _enableHeadTurn = true;
+        [Tooltip("Delay before head turn activates")]
         [SerializeField] private float _headLookDelay;
+        [Tooltip("Current head look horizontal value")]
         [SerializeField] private float _headLookX;
+        [Tooltip("Current head look vertical value")]
         [SerializeField] private float _headLookY;
+        [Tooltip("Curve controlling head turn response")]
         [SerializeField] private AnimationCurve _headLookXCurve;
 
+        [Header("Body Turn")]
         [SerializeField] private bool _enableBodyTurn = true;
+        [Tooltip("Delay before body turn activates")]
         [SerializeField] private float _bodyLookDelay;
+        [Tooltip("Current body look horizontal value")]
         [SerializeField] private float _bodyLookX;
+        [Tooltip("Current body look vertical value")]
         [SerializeField] private float _bodyLookY;
+        [Tooltip("Curve controlling body turn response")]
         [SerializeField] private AnimationCurve _bodyLookXCurve;
 
         [Header("Lean")]
         [SerializeField] private bool _enableLean = true;
+        [Tooltip("Delay before lean activates")]
         [SerializeField] private float _leanDelay;
+        [Tooltip("Current lean value")]
         [SerializeField] private float _leanValue;
+        [Tooltip("Curve controlling lean response based on speed")]
         [SerializeField] private AnimationCurve _leanCurve;
+        [Tooltip("Combined delay for both lean and head look systems")]
         [SerializeField] private float _leansHeadLooksDelay;
 
         private float _rotationRate;
@@ -40,6 +48,7 @@ namespace TeamZ.Characters.Player
         private Vector3 _currentRotation;
         private Vector3 _previousRotation;
 
+        private PlayerContext _playerContext;
         private Animator _animator;
 
         private int _leanValueHash;
@@ -50,12 +59,8 @@ namespace TeamZ.Characters.Player
 
         private void Awake()
         {
-            if (_context == null)
-            {
-                _context = GetComponent<PlayerContext>();
-            }
-
-            _animator = _context != null ? _context.Animator : GetComponentInChildren<Animator>();
+            _playerContext = GetComponent<PlayerContext>();
+            _animator = _playerContext.Animator;
 
             _leanValueHash = Animator.StringToHash("LeanValue");
             _headLookXHash = Animator.StringToHash("HeadLookX");
@@ -68,7 +73,7 @@ namespace TeamZ.Characters.Player
 
         private void Update()
         {
-            if (_animator == null || _context == null || _context.CameraController == null)
+            if (_animator == null || _playerContext == null || _playerContext.CameraController == null)
             {
                 return;
             }
@@ -109,8 +114,8 @@ namespace TeamZ.Characters.Player
             float maxLeanRotationRate = 275.0f;
 
             // Legacy uses speed / sprintSpeed as reference; here we approximate using current horizontal speed
-            float speed2D = _context.CurrentSpeed;
-            float sprintSpeed = Mathf.Max(0.01f, (_context != null ? _context.GetComponent<PlayerController>()?.SprintSpeed ?? 7f : 7f));
+            float speed2D = _playerContext.CurrentSpeed;
+            float sprintSpeed = Mathf.Max(0.01f, (_playerContext != null ? _playerContext.GetComponent<PlayerController>()?.SprintSpeed ?? 7f : 7f));
             float referenceValue = speed2D / sprintSpeed;
             _leanValue = CalculateSmoothedValue(
                 _leanValue,
@@ -127,7 +132,7 @@ namespace TeamZ.Characters.Player
             // When turning in place, headLookX is driven by camera rotation offset.
             // We approximate _cameraRotationOffset by angle between character forward and camera forward.
             Vector3 characterForward = new Vector3(transform.forward.x, 0f, transform.forward.z);
-            Vector3 cameraForward = _context.CameraController.GetCameraForwardZeroedYNormalised();
+            Vector3 cameraForward = _playerContext.CameraController.GetCameraForwardZeroedYNormalised();
             float cameraOffset = Vector3.SignedAngle(characterForward, cameraForward, Vector3.up);
 
             if (headLookActivated && Mathf.Abs(cameraOffset) > 10f)
@@ -164,7 +169,7 @@ namespace TeamZ.Characters.Player
             );
 
             // Vertical tilt from camera pitch
-            float cameraTilt = _context.CameraController.GetCameraTiltX();
+            float cameraTilt = _playerContext.CameraController.GetCameraTiltX();
             cameraTilt = (cameraTilt > 180f ? cameraTilt - 360f : cameraTilt) / -180f;
             cameraTilt = Mathf.Clamp(cameraTilt, -0.1f, 1.0f);
             _headLookY = cameraTilt;

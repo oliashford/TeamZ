@@ -11,7 +11,7 @@ namespace TeamZ.Characters.Player.States
     /// </summary>
     public class PlayerLocomotionState : ICharacterState
     {
-        private readonly PlayerContext _context;
+        private readonly PlayerContext _playerContext;
         private readonly MovementComponent _motor;
         private readonly Animator _animator;
         private readonly InputReader _input;
@@ -83,7 +83,7 @@ namespace TeamZ.Characters.Player.States
             float forwardStrafeMaxThreshold,
             PlayerController owner)
         {
-            _context = context;
+            _playerContext = context;
             _motor = motor;
             _animator = context.Animator;
             _input = context.InputReader;
@@ -163,16 +163,15 @@ namespace TeamZ.Characters.Player.States
             }
 
             // Compute move direction for starting and shuffle/strafe logic.
-            Vector3 moveInputWorld = _context.MoveInputWorld;
-            Vector3 characterForward = new Vector3(_context.Transform.forward.x, 0f, _context.Transform.forward.z).normalized;
-            Vector3 characterRight = new Vector3(_context.Transform.right.x, 0f, _context.Transform.right.z).normalized;
+            Vector3 moveInputWorld = _playerContext.MoveInputWorld;
+            Vector3 characterForward = new Vector3(_playerContext.Transform.forward.x, 0f, _playerContext.Transform.forward.z).normalized;
+            Vector3 characterRight = new Vector3(_playerContext.Transform.right.x, 0f, _playerContext.Transform.right.z).normalized;
             Vector3 desired = new Vector3(moveInputWorld.x, 0f, moveInputWorld.z).normalized;
 
             _newDirectionDifferenceAngle = characterForward != desired
                 ? Vector3.SignedAngle(characterForward, desired, Vector3.up)
                 : 0f;
 
-            bool isLockedOn = _owner != null && _owner.IsLockedOn;
             bool isAiming = _owner != null && _owner.IsAiming;
             bool isSprinting = _owner != null && _owner.IsSprinting;
 
@@ -184,7 +183,7 @@ namespace TeamZ.Characters.Player.States
             else
             {
                 // Shuffle / strafe values mirror legacy FaceMoveDirection behaviour.
-                _isStrafing = _alwaysStrafe || isAiming || isLockedOn;
+                _isStrafing = _alwaysStrafe || isAiming;
             }
 
             if (_isStrafing)
@@ -281,8 +280,8 @@ namespace TeamZ.Characters.Player.States
             // Reconstruct _moveDirection exactly as legacy SamplePlayerAnimationController.CalculateInput did.
             if (_input != null)
             {
-                Vector3 cameraForward = _context.CameraController.GetCameraForwardZeroedYNormalised();
-                Vector3 cameraRight = _context.CameraController.GetCameraRightZeroedYNormalised();
+                Vector3 cameraForward = _playerContext.CameraController.GetCameraForwardZeroedYNormalised();
+                Vector3 cameraRight = _playerContext.CameraController.GetCameraRightZeroedYNormalised();
                 _moveDirection = cameraForward * _input._moveComposite.y + cameraRight * _input._moveComposite.x;
             }
             else
@@ -291,9 +290,9 @@ namespace TeamZ.Characters.Player.States
             }
 
             float targetMaxSpeed;
-            if (!_context.IsGrounded)
+            if (!_playerContext.IsGrounded)
             {
-                targetMaxSpeed = new Vector3(_context.Velocity.x, 0f, _context.Velocity.z).magnitude;
+                targetMaxSpeed = new Vector3(_playerContext.Velocity.x, 0f, _playerContext.Velocity.z).magnitude;
             }
             else if (_owner != null && _owner.IsCrouching)
             {
@@ -312,7 +311,7 @@ namespace TeamZ.Characters.Player.States
                 targetMaxSpeed = _runSpeed;
             }
 
-            Vector3 velocity = _context.Velocity;
+            Vector3 velocity = _playerContext.Velocity;
 
             // Project _moveDirection into velocity target, like legacy.
             Vector3 targetVelocity;
@@ -329,21 +328,21 @@ namespace TeamZ.Characters.Player.States
             _speed2D = Mathf.Round(_speed2D * 1000f) / 1000f;
 
             // Apply back into context/motor.
-            _context.Velocity = velocity;
+            _playerContext.Velocity = velocity;
             _motor.Velocity = velocity;
             _motor.Move(velocity * Time.deltaTime);
 
             // ----- FaceMoveDirection equivalent -----
-            Vector3 characterForward = new Vector3(_context.Transform.forward.x, 0f, _context.Transform.forward.z).normalized;
-            Vector3 characterRight = new Vector3(_context.Transform.right.x, 0f, _context.Transform.right.z).normalized;
+            Vector3 characterForward = new Vector3(_playerContext.Transform.forward.x, 0f, _playerContext.Transform.forward.z).normalized;
+            Vector3 characterRight = new Vector3(_playerContext.Transform.right.x, 0f, _playerContext.Transform.right.z).normalized;
             Vector3 directionForward = new Vector3(_moveDirection.x, 0f, _moveDirection.z).normalized;
 
             // Reuse cameraForward from above calculation when available; if input was null, recompute it safely here.
-            Vector3 cameraForwardForFacing = _context.CameraController.GetCameraForwardZeroedYNormalised();
+            Vector3 cameraForwardForFacing = _playerContext.CameraController.GetCameraForwardZeroedYNormalised();
 
             Quaternion strafingTargetRotation = cameraForwardForFacing != Vector3.zero
                 ? Quaternion.LookRotation(cameraForwardForFacing)
-                : _context.Transform.rotation;
+                : _playerContext.Transform.rotation;
 
             _strafeAngle = characterForward != directionForward && directionForward != Vector3.zero
                 ? Vector3.SignedAngle(characterForward, directionForward, Vector3.up)
@@ -383,8 +382,8 @@ namespace TeamZ.Characters.Player.States
                     }
 
                     // Rotate character to match camera.
-                    _context.Transform.rotation = Quaternion.Slerp(
-                        _context.Transform.rotation,
+                    _playerContext.Transform.rotation = Quaternion.Slerp(
+                        _playerContext.Transform.rotation,
                         strafingTargetRotation,
                         _rotationSmoothing * Time.deltaTime);
 
@@ -406,8 +405,8 @@ namespace TeamZ.Characters.Player.States
                     _cameraRotationOffset = Mathf.Lerp(_cameraRotationOffset, newOffset, t);
 
                     // Rotate character towards camera.
-                    _context.Transform.rotation = Quaternion.Slerp(
-                        _context.Transform.rotation,
+                    _playerContext.Transform.rotation = Quaternion.Slerp(
+                        _playerContext.Transform.rotation,
                         strafingTargetRotation,
                         _rotationSmoothing * Time.deltaTime);
 
@@ -427,8 +426,8 @@ namespace TeamZ.Characters.Player.States
                 Vector3 faceDirection = new Vector3(velocity.x, 0f, velocity.z);
                 if (faceDirection != Vector3.zero)
                 {
-                    _context.Transform.rotation = Quaternion.Slerp(
-                        _context.Transform.rotation,
+                    _playerContext.Transform.rotation = Quaternion.Slerp(
+                        _playerContext.Transform.rotation,
                         Quaternion.LookRotation(faceDirection),
                         _rotationSmoothing * Time.deltaTime);
                 }
@@ -459,8 +458,8 @@ namespace TeamZ.Characters.Player.States
             _animator.SetInteger("CurrentGait", gait);
 
             // Ground / incline mirrors
-            _animator.SetBool("IsGrounded", _context.IsGrounded);
-            _animator.SetFloat("InclineAngle", _context.InclineAngle);
+            _animator.SetBool("IsGrounded", _playerContext.IsGrounded);
+            _animator.SetFloat("InclineAngle", _playerContext.InclineAngle);
 
             // Strafing related
             _animator.SetFloat("StrafeDirectionX", _strafeDirectionX);

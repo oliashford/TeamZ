@@ -5,10 +5,9 @@ namespace TeamZ.Characters.Core
     [RequireComponent(typeof(Animator))]
     public class IKComponent : MonoBehaviour
     {
-        [Tooltip("Weapon handler that exposes the currently equipped weapon.")]
         [SerializeField] private WeaponHandlerComponent _weaponHandler;
 
-        [Tooltip("Overall weight for left-hand IK when a weapon is equipped and unholstered.")]
+        [Tooltip("Overall weight for left-hand IK when weapon is equipped and unholstered")]
         [Range(0f, 1f)]
         [SerializeField] private float _leftHandIkWeight = 1f;
 
@@ -31,7 +30,7 @@ namespace TeamZ.Characters.Core
                 return;
             }
 
-            var currentWeapon = _weaponHandler.CurrentWeapon;
+            Weapons.Weapon currentWeapon = _weaponHandler.CurrentWeapon;
             bool canUseIk = currentWeapon != null && _weaponHandler.IsUnholstered;
 
             if (!canUseIk)

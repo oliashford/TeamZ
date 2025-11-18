@@ -158,15 +158,6 @@ namespace TeamZ.InputSystem
                     ""initialStateCheck"": false
                 },
                 {
-                    ""name"": ""LockOn"",
-                    ""type"": ""Button"",
-                    ""id"": ""a87fb759-f0bc-4a42-9e92-7f6bdec29e48"",
-                    ""expectedControlType"": ""Button"",
-                    ""processors"": """",
-                    ""interactions"": """",
-                    ""initialStateCheck"": false
-                },
-                {
                     ""name"": ""Fire"",
                     ""type"": ""Button"",
                     ""id"": ""2a72a672-6706-4e44-bdd3-b6ad09cb5845"",
@@ -432,28 +423,6 @@ namespace TeamZ.InputSystem
                 },
                 {
                     ""name"": """",
-                    ""id"": ""9f68216e-e598-4037-a000-2ca8be91e0ba"",
-                    ""path"": ""<Mouse>/middleButton"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Keyboard and Mouse"",
-                    ""action"": ""LockOn"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
-                    ""id"": ""bab278b9-2663-41cb-9167-ffb39759d9a9"",
-                    ""path"": ""<Gamepad>/rightStickPress"",
-                    ""interactions"": """",
-                    ""processors"": """",
-                    ""groups"": ""Gamepad"",
-                    ""action"": ""LockOn"",
-                    ""isComposite"": false,
-                    ""isPartOfComposite"": false
-                },
-                {
-                    ""name"": """",
                     ""id"": ""c2931c6d-3938-4f72-9b8f-feb242468bd1"",
                     ""path"": ""<Gamepad>/rightTrigger"",
                     ""interactions"": """",
@@ -516,7 +485,6 @@ namespace TeamZ.InputSystem
             m_Player_ToggleWalk = m_Player.FindAction("ToggleWalk", throwIfNotFound: true);
             m_Player_Aim = m_Player.FindAction("Aim", throwIfNotFound: true);
             m_Player_Crouch = m_Player.FindAction("Crouch", throwIfNotFound: true);
-            m_Player_LockOn = m_Player.FindAction("LockOn", throwIfNotFound: true);
             m_Player_Fire = m_Player.FindAction("Fire", throwIfNotFound: true);
         }
 
@@ -605,7 +573,6 @@ namespace TeamZ.InputSystem
         private readonly InputAction m_Player_ToggleWalk;
         private readonly InputAction m_Player_Aim;
         private readonly InputAction m_Player_Crouch;
-        private readonly InputAction m_Player_LockOn;
         private readonly InputAction m_Player_Fire;
         /// <summary>
         /// Provides access to input actions defined in input action map "Player".
@@ -647,10 +614,6 @@ namespace TeamZ.InputSystem
             /// </summary>
             public InputAction @Crouch => m_Wrapper.m_Player_Crouch;
             /// <summary>
-            /// Provides access to the underlying input action "Player/LockOn".
-            /// </summary>
-            public InputAction @LockOn => m_Wrapper.m_Player_LockOn;
-            /// <summary>
             /// Provides access to the underlying input action "Player/Fire".
             /// </summary>
             public InputAction @Fire => m_Wrapper.m_Player_Fire;
@@ -678,7 +641,10 @@ namespace TeamZ.InputSystem
             /// <seealso cref="PlayerActions" />
             public void AddCallbacks(IPlayerActions instance)
             {
-                if (instance == null || m_Wrapper.m_PlayerActionsCallbackInterfaces.Contains(instance)) return;
+                if (instance == null || m_Wrapper.m_PlayerActionsCallbackInterfaces.Contains(instance))
+                {
+                    return;
+                }
                 m_Wrapper.m_PlayerActionsCallbackInterfaces.Add(instance);
                 @Jump.started += instance.OnJump;
                 @Jump.performed += instance.OnJump;
@@ -701,9 +667,6 @@ namespace TeamZ.InputSystem
                 @Crouch.started += instance.OnCrouch;
                 @Crouch.performed += instance.OnCrouch;
                 @Crouch.canceled += instance.OnCrouch;
-                @LockOn.started += instance.OnLockOn;
-                @LockOn.performed += instance.OnLockOn;
-                @LockOn.canceled += instance.OnLockOn;
                 @Fire.started += instance.OnFire;
                 @Fire.performed += instance.OnFire;
                 @Fire.canceled += instance.OnFire;
@@ -739,9 +702,6 @@ namespace TeamZ.InputSystem
                 @Crouch.started -= instance.OnCrouch;
                 @Crouch.performed -= instance.OnCrouch;
                 @Crouch.canceled -= instance.OnCrouch;
-                @LockOn.started -= instance.OnLockOn;
-                @LockOn.performed -= instance.OnLockOn;
-                @LockOn.canceled -= instance.OnLockOn;
                 @Fire.started -= instance.OnFire;
                 @Fire.performed -= instance.OnFire;
                 @Fire.canceled -= instance.OnFire;
@@ -787,7 +747,10 @@ namespace TeamZ.InputSystem
         {
             get
             {
-                if (m_KeyboardandMouseSchemeIndex == -1) m_KeyboardandMouseSchemeIndex = asset.FindControlSchemeIndex("Keyboard and Mouse");
+                if (m_KeyboardandMouseSchemeIndex == -1)
+                {
+                    m_KeyboardandMouseSchemeIndex = asset.FindControlSchemeIndex("Keyboard and Mouse");
+                }
                 return asset.controlSchemes[m_KeyboardandMouseSchemeIndex];
             }
         }
@@ -800,7 +763,10 @@ namespace TeamZ.InputSystem
         {
             get
             {
-                if (m_GamepadSchemeIndex == -1) m_GamepadSchemeIndex = asset.FindControlSchemeIndex("Gamepad");
+                if (m_GamepadSchemeIndex == -1)
+                {
+                    m_GamepadSchemeIndex = asset.FindControlSchemeIndex("Gamepad");
+                }
                 return asset.controlSchemes[m_GamepadSchemeIndex];
             }
         }
@@ -860,13 +826,6 @@ namespace TeamZ.InputSystem
             /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
             /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
             void OnCrouch(InputAction.CallbackContext context);
-            /// <summary>
-            /// Method invoked when associated input action "LockOn" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
-            /// </summary>
-            /// <seealso cref="UnityEngine.InputSystem.InputAction.started" />
-            /// <seealso cref="UnityEngine.InputSystem.InputAction.performed" />
-            /// <seealso cref="UnityEngine.InputSystem.InputAction.canceled" />
-            void OnLockOn(InputAction.CallbackContext context);
             /// <summary>
             /// Method invoked when associated input action "Fire" is either <see cref="UnityEngine.InputSystem.InputAction.started" />, <see cref="UnityEngine.InputSystem.InputAction.performed" /> or <see cref="UnityEngine.InputSystem.InputAction.canceled" />.
             /// </summary>

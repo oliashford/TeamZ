@@ -1,58 +1,58 @@
+using Characters.Core;
 using TeamZ.Characters.Core;
 using UnityEngine;
 
 namespace TeamZ.Characters.Player
 {
-    /// <summary>
-    /// High-level player component that owns the state machine and wires inputs to states.
-    /// NOTE: Right now this is just scaffolding; your existing PlayerAnimationController
-    /// in Core/PlayerLegacy still drives live gameplay.
-    /// </summary>
+    // High-level player component that owns the state machine and wires inputs to states.
     [DisallowMultipleComponent]
-    public class PlayerController : MonoBehaviour, ILockOnReceiver
+    public class PlayerController : MonoBehaviour
     {
-        [Tooltip("Movement component used for player movement. If null, one is fetched from this GameObject.")]
         [SerializeField]
         private MovementComponent _motor;
 
-        [Tooltip("Context object exposing animator, input, camera etc.")]
         [SerializeField]
-        private PlayerContext _context;
+        private PlayerContext _playerContext;
 
         [Header("Locomotion Tuning (mirrors legacy PlayerAnimationController)")]
         [SerializeField] private float _walkSpeed = 1.4f;
         [SerializeField] private float _runSpeed = 2.5f;
         [SerializeField] private float _sprintSpeed = 7f;
+        [Tooltip("How quickly the character accelerates/decelerates")]
         [SerializeField] private float _speedChangeDamping = 10f;
+        [Tooltip("How quickly the character rotates to face the target direction")]
         [SerializeField] private float _rotationSmoothing = 10f;
+        [Tooltip("When true, character always faces camera direction instead of movement direction")]
         [SerializeField] private bool _alwaysStrafe = true;
+        [Tooltip("Minimum angle threshold for forward strafe blending")]
         [SerializeField] private float _forwardStrafeMinThreshold = -55f;
+        [Tooltip("Maximum angle threshold for forward strafe blending")]
         [SerializeField] private float _forwardStrafeMaxThreshold = 125f;
 
         [Header("Capsule / Crouch")]
         [SerializeField] private CharacterController _characterController;
+        [Tooltip("Character capsule height when standing")]
         [SerializeField] private float _capsuleStandingHeight = 1.8f;
+        [Tooltip("Character capsule center Y offset when standing")]
         [SerializeField] private float _capsuleStandingCentre = 0.93f;
+        [Tooltip("Character capsule height when crouching")]
         [SerializeField] private float _capsuleCrouchingHeight = 1.2f;
+        [Tooltip("Character capsule center Y offset when crouching")]
         [SerializeField] private float _capsuleCrouchingCentre = 0.6f;
 
         [Header("Airborne Settings (from legacy PlayerAnimationController)")]
+        [Tooltip("Initial upward velocity applied when jumping")]
         [SerializeField] private float _jumpForce = 10f;
+        [Tooltip("Multiplier applied to gravity when falling")]
         [SerializeField] private float _gravityMultiplier = 2f;
 
         [Header("Climb Settings")]
+        [Tooltip("How far forward from the ledge to place the character after climbing")]
         [SerializeField] private float _ledgeForwardOffset = 0.4f;
-
-        [Header("Lock-on Settings")]
-        [SerializeField] private Transform _targetLockOnPos;
 
         [Header("Combat / Aiming")]
         [SerializeField] private AimComponent _aimComponent;
         [SerializeField] private WeaponHandlerComponent _weaponHandler;
-
-        private readonly System.Collections.Generic.List<GameObject> _currentTargetCandidates = new System.Collections.Generic.List<GameObject>();
-        private GameObject _currentLockOnTarget;
-        private bool _isLockedOn;
 
         // New high-level runtime flags mirrored from legacy controller
         private bool _isAiming;
@@ -70,9 +70,9 @@ namespace TeamZ.Characters.Player
                 _motor = GetComponent<MovementComponent>();
             }
 
-            if (_context == null)
+            if (_playerContext == null)
             {
-                _context = GetComponent<PlayerContext>();
+                _playerContext = GetComponent<PlayerContext>();
             }
 
             if (_aimComponent == null)
@@ -90,22 +90,13 @@ namespace TeamZ.Characters.Player
                 _characterController = GetComponent<CharacterController>();
             }
 
-            if (_targetLockOnPos == null && _context != null)
-            {
-                var t = _context.transform.Find("TargetLockOnPos");
-                if (t != null)
-                {
-                    _targetLockOnPos = t;
-                }
-            }
-
             _stateMachine = new CharacterStateMachine();
         }
 
         private void Start()
         {
-            var locomotion = new States.PlayerLocomotionState(
-                _context,
+            States.PlayerLocomotionState locomotion = new States.PlayerLocomotionState(
+                _playerContext,
                 _motor,
                 _walkSpeed,
                 _runSpeed,
@@ -119,10 +110,9 @@ namespace TeamZ.Characters.Player
 
             _stateMachine.SetState(locomotion);
 
-            if (_context != null && _context.InputReader != null)
+            if (_playerContext != null && _playerContext.InputReader != null)
             {
-                var input = _context.InputReader;
-                input.onLockOnToggled += ToggleLockOn;
+                InputSystem.InputReader input = _playerContext.InputReader;
                 input.onJumpPerformed += OnJumpPerformed;
                 input.onAimActivated += OnAimActivated;
                 input.onAimDeactivated += OnAimDeactivated;
@@ -137,10 +127,9 @@ namespace TeamZ.Characters.Player
 
         private void OnDestroy()
         {
-            if (_context != null && _context.InputReader != null)
+            if (_playerContext != null && _playerContext.InputReader != null)
             {
-                var input = _context.InputReader;
-                input.onLockOnToggled -= ToggleLockOn;
+                InputSystem.InputReader input = _playerContext.InputReader;
                 input.onJumpPerformed -= OnJumpPerformed;
                 input.onAimActivated -= OnAimActivated;
                 input.onAimDeactivated -= OnAimDeactivated;
@@ -156,15 +145,12 @@ namespace TeamZ.Characters.Player
         private void Update()
         {
             _stateMachine.Tick();
-
-            // Continuously update best target when not locked-on, mirroring legacy behaviour.
-            UpdateBestTarget();
         }
 
         private void OnJumpPerformed()
         {
             // First, prefer climb if a climbable ledge is detected in front of the player.
-            var climbDetector = _context != null ? _context.ClimbDetectorComponent : null;
+            ClimbDetectorComponent climbDetector = _playerContext != null ? _playerContext.ClimbDetectorComponent : null;
 
             if (climbDetector != null)
             {
@@ -188,14 +174,14 @@ namespace TeamZ.Characters.Player
                     kind != ClimbDetectorComponent.ClimbKind.None)
                 {
                     // Drive animator climb type parameter from detected climb kind.
-                    if (_context != null && _context.Animator != null)
+                    if (_playerContext != null && _playerContext.Animator != null)
                     {
                         int climbTypeHash = Animator.StringToHash("ClimbType");
-                        _context.Animator.SetInteger(climbTypeHash, (int)kind);
+                        _playerContext.Animator.SetInteger(climbTypeHash, (int)kind);
                     }
 
-                    var climbState = new States.ClimbState(
-                        _context,
+                    States.ClimbState climbState = new States.ClimbState(
+                        _playerContext,
                         _motor,
                         _stateMachine,
                         this,
@@ -209,8 +195,8 @@ namespace TeamZ.Characters.Player
             }
 
             // If we didn't find a climb, fall back to airborne behaviour.
-            var airborne = new States.PlayerAirborneState(
-                _context,
+            States.PlayerAirborneState airborne = new States.PlayerAirborneState(
+                _playerContext,
                 _motor,
                 _stateMachine,
                 _jumpForce,
@@ -243,7 +229,7 @@ namespace TeamZ.Characters.Player
         private void OnCrouchActivated()
         {
             // Mirror legacy: only crouch if grounded.
-            if (_context != null && _context.IsGrounded)
+            if (_playerContext != null && _playerContext.IsGrounded)
             {
                 SetCrouch(true);
             }
@@ -252,7 +238,7 @@ namespace TeamZ.Characters.Player
         private void OnCrouchDeactivated()
         {
             // Only stand up if there is enough headroom and we are not sliding, mirroring legacy controller.
-            bool cannotStand = _context != null && _context.CannotStandUp;
+            bool cannotStand = _playerContext != null && _playerContext.CannotStandUp;
             if (!cannotStand && !_isSliding)
             {
                 SetCrouch(false);
@@ -262,7 +248,7 @@ namespace TeamZ.Characters.Player
         private void OnWalkToggled()
         {
             // Mirror legacy EnableWalk: only allow walk when grounded and not sprinting.
-            bool grounded = _context != null && _context.IsGrounded;
+            bool grounded = _playerContext != null && _playerContext.IsGrounded;
             _isWalking = !_isWalking && grounded && !_isSprinting;
         }
 
@@ -329,135 +315,6 @@ namespace TeamZ.Characters.Player
             _isSliding = false;
         }
 
-        #region ILockOnReceiver
-
-        public void AddTargetCandidate(GameObject target)
-        {
-            if (target != null && !_currentTargetCandidates.Contains(target))
-            {
-                _currentTargetCandidates.Add(target);
-            }
-        }
-
-        public void RemoveTarget(GameObject target)
-        {
-            if (target != null && _currentTargetCandidates.Contains(target))
-            {
-                _currentTargetCandidates.Remove(target);
-            }
-        }
-
-        #endregion
-
-        #region Lock-on Logic (ported from legacy PlayerAnimationController)
-
-        private void ToggleLockOn()
-        {
-            EnableLockOn(!_isLockedOn);
-        }
-
-        private void EnableLockOn(bool enable)
-        {
-            _isLockedOn = enable;
-
-            var cameraController = _context != null ? _context.CameraController : null;
-            if (cameraController != null && _targetLockOnPos != null)
-            {
-                cameraController.LockOn(enable, _targetLockOnPos);
-            }
-
-            if (enable && _currentLockOnTarget != null)
-            {
-                var lockOn = _currentLockOnTarget.GetComponent<ObjectLockOn>();
-                if (lockOn != null)
-                {
-                    lockOn.Highlight(true, true);
-                }
-            }
-        }
-
-        private void UpdateBestTarget()
-        {
-            GameObject newBestTarget;
-
-            if (_currentTargetCandidates.Count == 0)
-            {
-                newBestTarget = null;
-            }
-            else if (_currentTargetCandidates.Count == 1)
-            {
-                newBestTarget = _currentTargetCandidates[0];
-            }
-            else
-            {
-                newBestTarget = null;
-                float bestTargetScore = 0f;
-
-                var cameraController = _context != null ? _context.CameraController : null;
-                if (cameraController == null)
-                {
-                    return;
-                }
-
-                foreach (GameObject target in _currentTargetCandidates)
-                {
-                    var lockOn = target.GetComponent<ObjectLockOn>();
-                    if (lockOn != null)
-                    {
-                        lockOn.Highlight(false, false);
-                    }
-
-                    float distance = Vector3.Distance(transform.position, target.transform.position);
-                    float distanceScore = 1 / distance * 100;
-
-                    Vector3 targetDirection = target.transform.position - cameraController.GetCameraPosition();
-                    float angleInView = Vector3.Dot(targetDirection.normalized, cameraController.GetCameraForward());
-                    float angleScore = angleInView * 40;
-
-                    float totalScore = distanceScore + angleScore;
-
-                    if (totalScore > bestTargetScore)
-                    {
-                        bestTargetScore = totalScore;
-                        newBestTarget = target;
-                    }
-                }
-            }
-
-            if (!_isLockedOn)
-            {
-                _currentLockOnTarget = newBestTarget;
-
-                if (_currentLockOnTarget != null)
-                {
-                    var lockOn = _currentLockOnTarget.GetComponent<ObjectLockOn>();
-                    if (lockOn != null)
-                    {
-                        lockOn.Highlight(true, false);
-                    }
-                }
-            }
-            else
-            {
-                if (_currentLockOnTarget != null && _currentTargetCandidates.Contains(_currentLockOnTarget))
-                {
-                    var lockOn = _currentLockOnTarget.GetComponent<ObjectLockOn>();
-                    if (lockOn != null)
-                    {
-                        lockOn.Highlight(true, true);
-                    }
-                }
-                else
-                {
-                    _currentLockOnTarget = newBestTarget;
-                    EnableLockOn(false);
-                }
-            }
-        }
-
-        public bool IsLockedOn => _isLockedOn;
-        public GameObject CurrentLockOnTarget => _currentLockOnTarget;
-
         public float WalkSpeed => _walkSpeed;
         public float RunSpeed => _runSpeed;
         public float SprintSpeed => _sprintSpeed;
@@ -480,4 +337,4 @@ namespace TeamZ.Characters.Player
         public float LedgeForwardOffset => _ledgeForwardOffset;
     }
 }
-#endregion
+

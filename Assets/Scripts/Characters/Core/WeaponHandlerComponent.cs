@@ -1,3 +1,4 @@
+using Characters.Core;
 using UnityEngine;
 using TeamZ.Weapons;
 
@@ -7,7 +8,9 @@ namespace TeamZ.Characters.Core
     public class WeaponHandlerComponent : MonoBehaviour
     {
         [Header("Sockets")]
+        [Tooltip("Transform where weapon is attached when drawn")]
         [SerializeField] private Transform _rightHandSocket;
+        [Tooltip("Transform where weapon is attached when holstered")]
         [SerializeField] private Transform _holsterSocket;
 
         [Header("Initial Weapon (optional)")]
@@ -19,6 +22,7 @@ namespace TeamZ.Characters.Core
 
         [Header("Aiming")]
         [SerializeField] private AimComponent _aimComponent;
+        [Tooltip("How quickly weapon rotates to aim at target when ADS")]
         [SerializeField] private float _adsAimRotateSpeed = 20f;
 
         private Animator _animator;
@@ -54,7 +58,7 @@ namespace TeamZ.Characters.Core
                 return;
             }
 
-            if (!_aimComponent.isAiming)
+            if (!_aimComponent.IsAiming)
             {
                 return;
             }

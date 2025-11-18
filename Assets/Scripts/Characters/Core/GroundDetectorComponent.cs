@@ -8,28 +8,27 @@ namespace TeamZ.Characters.Core
     /// </summary>
     public class GroundDetectorComponent : MonoBehaviour
     {
-        [Tooltip("Radius of the ground check sphere (usually match CharacterController radius).")]
+        [Tooltip("Radius of the ground check sphere (should match CharacterController radius)")]
         [SerializeField]
         private float _groundCheckRadius = 0.25f;
 
-        [Tooltip("Vertical offset from the character pivot down to where ground is tested.")]
+        [Tooltip("Vertical offset from character pivot to ground test position")]
         [SerializeField]
         private float _groundCheckOffset = 0.2f;
 
-        [Tooltip("Layers that count as ground.")]
         [SerializeField]
         private LayerMask _groundMask;
 
         [Header("Incline / Ceiling")]
-        [Tooltip("Rear ray origin used for incline checks (optional).")]
+        [Tooltip("Rear ray origin for incline calculation")]
         [SerializeField]
         private Transform _rearRayPos;
 
-        [Tooltip("Front ray origin used for incline and ceiling checks (optional).")]
+        [Tooltip("Front ray origin for incline and ceiling detection")]
         [SerializeField]
         private Transform _frontRayPos;
 
-        [Tooltip("Standing capsule height used for ceiling checks.")]
+        [Tooltip("Standing capsule height for ceiling headroom checks")]
         [SerializeField]
         private float _capsuleStandingHeight = 1.8f;
 
@@ -106,9 +105,11 @@ namespace TeamZ.Characters.Core
             }
 
             Vector3 hitDifference = frontHit.point - rearHit.point;
+            
             float xPlaneLength = new Vector2(hitDifference.x, hitDifference.z).magnitude;
 
             float targetAngle = Mathf.Atan2(hitDifference.y, xPlaneLength) * Mathf.Rad2Deg;
+            
             InclineAngle = Mathf.Lerp(InclineAngle, targetAngle, 20f * Time.deltaTime);
         }
 
@@ -121,9 +122,11 @@ namespace TeamZ.Characters.Core
             }
 
             float rayDistance = Mathf.Infinity;
+            
             float minimumStandingHeight = _capsuleStandingHeight - _frontRayPos.localPosition.y;
 
             Vector3 midpoint = new Vector3(transform.position.x, transform.position.y + _frontRayPos.localPosition.y, transform.position.z);
+            
             if (Physics.Raycast(midpoint, transform.TransformDirection(Vector3.up), out RaycastHit ceilingHit, rayDistance, _groundMask))
             {
                 CannotStandUp = ceilingHit.distance < minimumStandingHeight;
@@ -137,8 +140,11 @@ namespace TeamZ.Characters.Core
         private void OnDrawGizmosSelected()
         {
             Gizmos.color = IsGrounded ? Color.green : Color.red;
+            
             Vector3 origin = transform.position;
+            
             origin.y -= _groundCheckOffset;
+            
             Gizmos.DrawWireSphere(origin, _groundCheckRadius);
         }
     }

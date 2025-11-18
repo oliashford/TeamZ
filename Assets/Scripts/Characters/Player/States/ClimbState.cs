@@ -11,7 +11,7 @@ namespace TeamZ.Characters.Player.States
     /// </summary>
     public class ClimbState : ICharacterState
     {
-        private readonly PlayerContext _context;
+        private readonly PlayerContext _playerContext;
         private readonly MovementComponent _motor;
         private readonly Animator _animator;
         private readonly CharacterStateMachine _stateMachine;
@@ -38,7 +38,7 @@ namespace TeamZ.Characters.Player.States
             Vector3 ledgeNormal,
             int climbType)
         {
-            _context = context;
+            _playerContext = context;
             _motor = motor;
             _stateMachine = stateMachine;
             _owner = owner;
@@ -57,11 +57,11 @@ namespace TeamZ.Characters.Player.States
             Debug.Log("EnterClimbState");
 
             // Zero full velocity and stop sliding
-            Vector3 vel = _context.Velocity;
+            Vector3 vel = _playerContext.Velocity;
             vel.x = 0f;
             vel.y = 0f;
             vel.z = 0f;
-            _context.Velocity = vel;
+            _playerContext.Velocity = vel;
             _motor.Velocity = vel;
             _owner?.DeactivateSliding();
 
@@ -72,7 +72,7 @@ namespace TeamZ.Characters.Player.States
                 forward.y = 0f;
                 if (forward.sqrMagnitude > 0.0001f)
                 {
-                    _context.Transform.rotation = Quaternion.LookRotation(forward);
+                    _playerContext.Transform.rotation = Quaternion.LookRotation(forward);
                 }
             }
 
@@ -91,10 +91,10 @@ namespace TeamZ.Characters.Player.States
             _climbStateTime += Time.deltaTime;
 
             // Keep the character roughly anchored to the ledge XZ while animation plays.
-            Vector3 pos = _context.Transform.position;
+            Vector3 pos = _playerContext.Transform.position;
             pos.x = Mathf.Lerp(pos.x, _ledgePosition.x, 10f * Time.deltaTime);
             pos.z = Mathf.Lerp(pos.z, _ledgePosition.z, 10f * Time.deltaTime);
-            _context.Transform.position = pos;
+            _playerContext.Transform.position = pos;
 
             // When the climb animation is complete, finish and return to locomotion.
             AnimatorStateInfo state = _animator.GetCurrentAnimatorStateInfo(0);
@@ -115,11 +115,11 @@ namespace TeamZ.Characters.Player.States
             _animator.SetBool(_isClimbingHash, false);
 
             // Place character on top of the obstacle, mirroring legacy FinishClimb logic.
-            var controller = _context.Transform.GetComponent<CharacterController>();
+            CharacterController controller = _playerContext.Transform.GetComponent<CharacterController>();
             float capsuleHeight = controller != null ? controller.height : 2f;
             float forwardOffset = _owner != null ? _owner.LedgeForwardOffset : 0.4f;
 
-            Vector3 forwardOnLedge = new Vector3(_context.Transform.forward.x, 0f, _context.Transform.forward.z).normalized;
+            Vector3 forwardOnLedge = new Vector3(_playerContext.Transform.forward.x, 0f, _playerContext.Transform.forward.z).normalized;
             Vector3 targetPosition = _ledgePosition + forwardOnLedge * forwardOffset;
 
             // Stand capsule on top.
@@ -127,16 +127,16 @@ namespace TeamZ.Characters.Player.States
 
             if (controller != null)
             {
-                Vector3 delta = targetPosition - _context.Transform.position;
+                Vector3 delta = targetPosition - _playerContext.Transform.position;
                 controller.Move(delta);
             }
             else
             {
-                _context.Transform.position = targetPosition;
+                _playerContext.Transform.position = targetPosition;
             }
 
-            var locomotion = new PlayerLocomotionState(
-                _context,
+            PlayerLocomotionState locomotion = new PlayerLocomotionState(
+                _playerContext,
                 _motor,
                 _owner.WalkSpeed,
                 _owner.RunSpeed,

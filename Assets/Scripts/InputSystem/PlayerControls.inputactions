@@ -70,15 +70,6 @@
                     "initialStateCheck": false
                 },
                 {
-                    "name": "LockOn",
-                    "type": "Button",
-                    "id": "a87fb759-f0bc-4a42-9e92-7f6bdec29e48",
-                    "expectedControlType": "Button",
-                    "processors": "",
-                    "interactions": "",
-                    "initialStateCheck": false
-                },
-                {
                     "name": "Fire",
                     "type": "Button",
                     "id": "2a72a672-6706-4e44-bdd3-b6ad09cb5845",
@@ -339,28 +330,6 @@
                     "processors": "",
                     "groups": "Gamepad",
                     "action": "Crouch",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "9f68216e-e598-4037-a000-2ca8be91e0ba",
-                    "path": "<Mouse>/middleButton",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Keyboard and Mouse",
-                    "action": "LockOn",
-                    "isComposite": false,
-                    "isPartOfComposite": false
-                },
-                {
-                    "name": "",
-                    "id": "bab278b9-2663-41cb-9167-ffb39759d9a9",
-                    "path": "<Gamepad>/rightStickPress",
-                    "interactions": "",
-                    "processors": "",
-                    "groups": "Gamepad",
-                    "action": "LockOn",
                     "isComposite": false,
                     "isPartOfComposite": false
                 },

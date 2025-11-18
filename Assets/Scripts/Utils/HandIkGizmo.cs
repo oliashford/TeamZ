@@ -11,18 +11,25 @@ namespace Utils
             Right
         }
 
-        [Header("Hand IK Helper")] [SerializeField]
-        private HandType _handType = HandType.Right;
+        [Header("Hand IK Helper")]
+        [SerializeField] private HandType _handType = HandType.Right;
 
+        [Tooltip("Gizmo display size")]
         [SerializeField] private float _size = 0.1f;
         [SerializeField] private Color _color = Color.cyan;
+        
+        [Tooltip("Draw local axes (RGB = XYZ)")]
         [SerializeField] private bool _drawAxes = true;
+        
+        [Tooltip("Draw gizmo even when object is not selected")]
         [SerializeField] private bool _drawWhenNotSelected = true;
 
         private void OnDrawGizmos()
         {
             if (!_drawWhenNotSelected)
+            {
                 return;
+            }
 
             DrawHandGizmo();
         }
@@ -31,7 +38,9 @@ namespace Utils
         {
             // Always draw when selected
             if (!_drawWhenNotSelected)
+            {
                 DrawHandGizmo();
+            }
         }
 
         private void DrawHandGizmo()
