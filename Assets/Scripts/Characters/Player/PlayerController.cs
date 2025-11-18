@@ -13,7 +13,7 @@ namespace TeamZ.Characters.Player
     {
         [Tooltip("Movement component used for player movement. If null, one is fetched from this GameObject.")]
         [SerializeField]
-        private CharacterMovementComponent _motor;
+        private MovementComponent _motor;
 
         [Tooltip("Context object exposing animator, input, camera etc.")]
         [SerializeField]
@@ -46,6 +46,10 @@ namespace TeamZ.Characters.Player
         [Header("Lock-on Settings")]
         [SerializeField] private Transform _targetLockOnPos;
 
+        [Header("Combat / Aiming")]
+        [SerializeField] private AimComponent _aimComponent;
+        [SerializeField] private WeaponHandlerComponent _weaponHandler;
+
         private readonly System.Collections.Generic.List<GameObject> _currentTargetCandidates = new System.Collections.Generic.List<GameObject>();
         private GameObject _currentLockOnTarget;
         private bool _isLockedOn;
@@ -63,7 +67,7 @@ namespace TeamZ.Characters.Player
         {
             if (_motor == null)
             {
-                _motor = GetComponent<CharacterMovementComponent>();
+                _motor = GetComponent<MovementComponent>();
             }
 
             if (_context == null)
@@ -71,6 +75,16 @@ namespace TeamZ.Characters.Player
                 _context = GetComponent<PlayerContext>();
             }
 
+            if (_aimComponent == null)
+            {
+                _aimComponent = GetComponent<AimComponent>();
+            }
+
+            if (_weaponHandler == null)
+            {
+                _weaponHandler = GetComponent<WeaponHandlerComponent>();
+            }
+            
             if (_characterController == null)
             {
                 _characterController = GetComponent<CharacterController>();
@@ -117,6 +131,7 @@ namespace TeamZ.Characters.Player
                 input.onWalkToggled += OnWalkToggled;
                 input.onSprintActivated += OnSprintActivated;
                 input.onSprintDeactivated += OnSprintDeactivated;
+                input.onFirePerformed += OnFirePerformed;
             }
         }
 
@@ -134,6 +149,7 @@ namespace TeamZ.Characters.Player
                 input.onWalkToggled -= OnWalkToggled;
                 input.onSprintActivated -= OnSprintActivated;
                 input.onSprintDeactivated -= OnSprintDeactivated;
+                input.onFirePerformed -= OnFirePerformed;
             }
         }
 
@@ -207,11 +223,21 @@ namespace TeamZ.Characters.Player
         private void OnAimActivated()
         {
             _isAiming = true;
+            
+            if (_aimComponent != null)
+            {
+                _aimComponent.SetAiming(true);
+            }
         }
 
         private void OnAimDeactivated()
         {
             _isAiming = false;
+            
+            if (_aimComponent != null)
+            {
+                _aimComponent.SetAiming(false);
+            }
         }
 
         private void OnCrouchActivated()
@@ -253,6 +279,20 @@ namespace TeamZ.Characters.Player
         private void OnSprintDeactivated()
         {
             _isSprinting = false;
+        }
+
+        private void OnFirePerformed()
+        {
+            Debug.Log("Fire!");
+            
+            if (_aimComponent == null || _weaponHandler == null)
+            {
+                return;
+            }
+
+            Ray aimRay = _aimComponent.GetAimRay();
+            
+            _weaponHandler.Fire(aimRay, _isAiming);
         }
 
         private void SetCrouch(bool crouch)

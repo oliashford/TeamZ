@@ -16,7 +16,7 @@ namespace TeamZ.Characters.Player
 
         private CharacterController _controller;
         private ClimbDetectorComponent _climbDetector;
-        private CharacterMovementComponent _movement;
+        private MovementComponent _movement;
         private GroundDetectorComponent _groundDetector;
 
         public Animator Animator => _animator;
@@ -66,7 +66,7 @@ namespace TeamZ.Characters.Player
         {
             _controller = GetComponent<CharacterController>();
             _climbDetector = _climbDetectorComponent;
-            _movement = GetComponent<CharacterMovementComponent>();
+            _movement = GetComponent<MovementComponent>();
 
             // Prefer explicitly assigned GroundDetectorComponent, otherwise search children.
             _groundDetector = _groundDetectorComponent != null

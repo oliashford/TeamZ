@@ -12,7 +12,7 @@ namespace TeamZ.Characters.Player.States
     public class ClimbState : ICharacterState
     {
         private readonly PlayerContext _context;
-        private readonly CharacterMovementComponent _motor;
+        private readonly MovementComponent _motor;
         private readonly Animator _animator;
         private readonly CharacterStateMachine _stateMachine;
         private readonly PlayerController _owner;
@@ -31,7 +31,7 @@ namespace TeamZ.Characters.Player.States
 
         public ClimbState(
             PlayerContext context,
-            CharacterMovementComponent motor,
+            MovementComponent motor,
             CharacterStateMachine stateMachine,
             PlayerController owner,
             Vector3 ledgePosition,

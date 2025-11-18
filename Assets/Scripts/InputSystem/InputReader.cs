@@ -8,11 +8,10 @@
 using System;
 using UnityEngine;
 using UnityEngine.InputSystem;
-using UnityEngine.Serialization;
 
 namespace TeamZ.InputSystem
 {
-    public class InputReader : MonoBehaviour, Controls.IPlayerActions
+    public class InputReader : MonoBehaviour, PlayerControls.IPlayerActions
     {
         public Vector2 _mouseDelta;
         public Vector2 _moveComposite;
@@ -20,7 +19,7 @@ namespace TeamZ.InputSystem
         public float _movementInputDuration;
         public bool _movementInputDetected;
 
-        private Controls _controls;
+        private PlayerControls _controls;
 
         public Action onAimActivated;
         public Action onAimDeactivated;
@@ -36,13 +35,14 @@ namespace TeamZ.InputSystem
         public Action onSprintDeactivated;
 
         public Action onWalkToggled;
+        public Action onFirePerformed;
 
         /// <inheritdoc cref="OnEnable" />
         private void OnEnable()
         {
             if (_controls == null)
             {
-                _controls = new Controls();
+                _controls = new PlayerControls();
                 _controls.Player.SetCallbacks(this);
             }
 
@@ -164,6 +164,16 @@ namespace TeamZ.InputSystem
 
             onLockOnToggled?.Invoke();
             onSprintDeactivated?.Invoke();
+        }
+
+        public void OnFire(InputAction.CallbackContext context)
+        {
+            if (!context.performed)
+            {
+                return;
+            }
+
+            onFirePerformed?.Invoke();
         }
     }
 }

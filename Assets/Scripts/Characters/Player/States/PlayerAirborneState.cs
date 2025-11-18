@@ -11,7 +11,7 @@ namespace TeamZ.Characters.Player.States
     public class PlayerAirborneState : ICharacterState
     {
         private readonly PlayerContext _context;
-        private readonly CharacterMovementComponent _motor;
+        private readonly MovementComponent _motor;
         private readonly Animator _animator;
         private readonly InputReader _input;
         private readonly PlayerController _owner;
@@ -25,7 +25,7 @@ namespace TeamZ.Characters.Player.States
 
         public PlayerAirborneState(
             PlayerContext context,
-            CharacterMovementComponent motor,
+            MovementComponent motor,
             CharacterStateMachine stateMachine,
             float jumpForce,
             float gravityMultiplier,

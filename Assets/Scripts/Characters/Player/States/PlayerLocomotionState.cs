@@ -12,7 +12,7 @@ namespace TeamZ.Characters.Player.States
     public class PlayerLocomotionState : ICharacterState
     {
         private readonly PlayerContext _context;
-        private readonly CharacterMovementComponent _motor;
+        private readonly MovementComponent _motor;
         private readonly Animator _animator;
         private readonly InputReader _input;
         private readonly PlayerController _owner;
@@ -72,7 +72,7 @@ namespace TeamZ.Characters.Player.States
 
         public PlayerLocomotionState(
             PlayerContext context,
-            CharacterMovementComponent motor,
+            MovementComponent motor,
             float walkSpeed,
             float runSpeed,
             float sprintSpeed,

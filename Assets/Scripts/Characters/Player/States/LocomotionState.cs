@@ -10,9 +10,9 @@ namespace TeamZ.Characters.Player.States
     public class LocomotionState : ICharacterState
     {
         private readonly PlayerController _player;
-        private readonly CharacterMovementComponent _motor;
+        private readonly MovementComponent _motor;
 
-        public LocomotionState(PlayerController player, CharacterMovementComponent motor)
+        public LocomotionState(PlayerController player, MovementComponent motor)
         {
             _player = player;
             _motor = motor;
