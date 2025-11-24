@@ -30,6 +30,8 @@ namespace TeamZ.Weapons
         [SerializeField] private AudioSource _audioSource;
         [SerializeField] private AudioClip _fireClip;
 
+        private int _currentAmmo;
+
         public WeaponConfig Config => _config;
         public Transform LeftHandIkTarget => _leftHandIkTarget;
         public Transform Muzzle => _muzzle;
@@ -38,6 +40,9 @@ namespace TeamZ.Weapons
         public void Initialize(WeaponConfig config)
         {
             _config = config;
+
+            // Initialize ammo from config magazine size
+            _currentAmmo = _config != null ? Mathf.Max(1, _config.magazineSize) : 0;
         }
 
         private void Awake()
@@ -48,12 +53,20 @@ namespace TeamZ.Weapons
             }
         }
 
-
-        public void Fire(Ray aimRay, bool isAiming)
+        /// <summary>
+        /// Try to fire the weapon. Returns true if a shot was fired, false if out of ammo.
+        /// </summary>
+        public bool TryFire(Ray aimRay, bool isAiming)
         {
             if (_config == null)
             {
                 Debug.LogWarning("Weapon fired without a WeaponConfig.", this);
+            }
+
+            if (_currentAmmo <= 0)
+            {
+                // No ammo to fire.
+                return false;
             }
 
             Vector3 dir = aimRay.direction;
@@ -93,11 +106,16 @@ namespace TeamZ.Weapons
                 Debug.DrawLine(rayOrigin, hitPoint, Color.yellow, 0.2f);
             }
 
+            // Consume ammo
+            _currentAmmo = Mathf.Max(0, _currentAmmo - 1);
+
             // Game-view tracer: from muzzle (if available) to the resolved hit point.
             Vector3 tracerStart = _muzzle != null ? _muzzle.position : rayOrigin;
             DrawTracer(tracerStart, hitPoint);
             PlayMuzzleFlash();
             PlayFireSound();
+
+            return true;
         }
 
         private void DrawTracer(Vector3 start, Vector3 end)
@@ -177,5 +195,17 @@ namespace TeamZ.Weapons
             Quaternion targetRot = Quaternion.LookRotation(dir, Vector3.up);
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRot, rotateSpeed * Time.deltaTime);
         }
+
+        public void Reload()
+        {
+            if (_config == null)
+            {
+                return;
+            }
+
+            _currentAmmo = Mathf.Max(1, _config.magazineSize);
+        }
+
+        public int CurrentAmmo => _currentAmmo;
     }
 }

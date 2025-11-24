@@ -2,21 +2,15 @@ using UnityEngine;
 
 namespace TeamZ.Characters.Core
 {
-    /// <summary>
-    /// Things any humanoid character (player or enemy) can expose:
-    /// movement info, animator, climb, etc.
-    /// </summary>
+    // Things any humanoid character (player or enemy) can expose: movement info, animator, climb, etc.
     public interface ICharacterContext
     {
-        Animator Animator { get; }
+        Animator animator { get; }
         Transform Transform { get; }
 
         // Movement
         Vector3 Velocity { get; set; }
         bool IsGrounded { get; }
-
-        // High-level abilities
-        ClimbDetectorComponent ClimbDetectorComponent { get; }
 
         // Parameters commonly pushed to the animator
         float CurrentSpeed { get; }

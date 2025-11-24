@@ -27,6 +27,11 @@ namespace TeamZ.Characters.Core
             OnStateChanged?.Invoke(CurrentState);
         }
 
+        public void FixedTick()
+        {
+            CurrentState?.FixedTick();
+        }
+        
         public void Tick()
         {
             CurrentState?.Tick();

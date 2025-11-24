@@ -1,118 +1,46 @@
-using Characters.Core;
-using TeamZ.Characters.Core;
+using TeamZ.Characters.Player.Components;
+using TeamZ.Characters.Player.States;
+using TeamZ.Characters.Player.States.Combat;
+using TeamZ.Characters.Player.States.Cover;
+using TeamZ.Characters.Player.States.Movement;
 using UnityEngine;
 
 namespace TeamZ.Characters.Player
 {
-    // High-level player component that owns the state machine and wires inputs to states.
+    // High-level player component that owns the state machine and wires inputs to 
+    
+    [RequireComponent(typeof(PlayerContext))]
     [DisallowMultipleComponent]
     public class PlayerController : MonoBehaviour
     {
-        [SerializeField]
-        private MovementComponent _motor;
-
-        [SerializeField]
-        private PlayerContext _playerContext;
-
-        [Header("Locomotion Tuning (mirrors legacy PlayerAnimationController)")]
-        [SerializeField] private float _walkSpeed = 1.4f;
-        [SerializeField] private float _runSpeed = 2.5f;
-        [SerializeField] private float _sprintSpeed = 7f;
-        [Tooltip("How quickly the character accelerates/decelerates")]
-        [SerializeField] private float _speedChangeDamping = 10f;
-        [Tooltip("How quickly the character rotates to face the target direction")]
-        [SerializeField] private float _rotationSmoothing = 10f;
-        [Tooltip("When true, character always faces camera direction instead of movement direction")]
-        [SerializeField] private bool _alwaysStrafe = true;
-        [Tooltip("Minimum angle threshold for forward strafe blending")]
-        [SerializeField] private float _forwardStrafeMinThreshold = -55f;
-        [Tooltip("Maximum angle threshold for forward strafe blending")]
-        [SerializeField] private float _forwardStrafeMaxThreshold = 125f;
-
-        [Header("Capsule / Crouch")]
-        [SerializeField] private CharacterController _characterController;
-        [Tooltip("Character capsule height when standing")]
-        [SerializeField] private float _capsuleStandingHeight = 1.8f;
-        [Tooltip("Character capsule center Y offset when standing")]
-        [SerializeField] private float _capsuleStandingCentre = 0.93f;
-        [Tooltip("Character capsule height when crouching")]
-        [SerializeField] private float _capsuleCrouchingHeight = 1.2f;
-        [Tooltip("Character capsule center Y offset when crouching")]
-        [SerializeField] private float _capsuleCrouchingCentre = 0.6f;
-
-        [Header("Airborne Settings (from legacy PlayerAnimationController)")]
-        [Tooltip("Initial upward velocity applied when jumping")]
-        [SerializeField] private float _jumpForce = 10f;
-        [Tooltip("Multiplier applied to gravity when falling")]
-        [SerializeField] private float _gravityMultiplier = 2f;
-
-        [Header("Climb Settings")]
-        [Tooltip("How far forward from the ledge to place the character after climbing")]
-        [SerializeField] private float _ledgeForwardOffset = 0.4f;
-
-        [Header("Combat / Aiming")]
-        [SerializeField] private AimComponent _aimComponent;
-        [SerializeField] private WeaponHandlerComponent _weaponHandler;
-
-        // New high-level runtime flags mirrored from legacy controller
-        private bool _isAiming;
-        private bool _isCrouching;
-        private bool _isSliding;
-        private bool _isWalking;
-        private bool _isSprinting;
-
-        private CharacterStateMachine _stateMachine;
+        private PlayerContext _context;
+        private CharacterController _characterController;
+        private PlayerController _movementComponent;
+        private object _aimComponent;
 
         private void Awake()
         {
-            if (_motor == null)
+            // Get the PlayerContext first (it caches the frequently used components).
+            if (!TryGetComponent(out _context))
             {
-                _motor = GetComponent<MovementComponent>();
-            }
-
-            if (_playerContext == null)
-            {
-                _playerContext = GetComponent<PlayerContext>();
-            }
-
-            if (_aimComponent == null)
-            {
-                _aimComponent = GetComponent<AimComponent>();
-            }
-
-            if (_weaponHandler == null)
-            {
-                _weaponHandler = GetComponent<WeaponHandlerComponent>();
+                Debug.LogError("PlayerController requires a PlayerContext component.");
+                throw new System.InvalidOperationException("PlayerController requires a PlayerContext component.");
             }
             
-            if (_characterController == null)
-            {
-                _characterController = GetComponent<CharacterController>();
-            }
-
-            _stateMachine = new CharacterStateMachine();
         }
 
         private void Start()
         {
-            States.PlayerLocomotionState locomotion = new States.PlayerLocomotionState(
-                _playerContext,
-                _motor,
-                _walkSpeed,
-                _runSpeed,
-                _sprintSpeed,
-                _speedChangeDamping,
-                _rotationSmoothing,
-                _alwaysStrafe,
-                _forwardStrafeMinThreshold,
-                _forwardStrafeMaxThreshold,
-                this);
+            _context.MovementStateMachine.SetState(new MovementIdleState(_context, this));
+            _context.CombatStateMachine.SetState(new CombatIdleState(_context, this));
+            _context.PostureStateMachine.SetState(new PostureIdleState(_context));
+            _context.CoverStateMachine.SetState(new CoverIdleState(_context));
+            _context.InteractionStateMachine.SetState(new CombatIdleState(_context, this));
 
-            _stateMachine.SetState(locomotion);
-
-            if (_playerContext != null && _playerContext.InputReader != null)
+            if (_context != null && _context.inputReader != null)
             {
-                InputSystem.InputReader input = _playerContext.InputReader;
+                InputSystem.InputReader input = _context.inputReader;
+                
                 input.onJumpPerformed += OnJumpPerformed;
                 input.onAimActivated += OnAimActivated;
                 input.onAimDeactivated += OnAimDeactivated;
@@ -121,15 +49,14 @@ namespace TeamZ.Characters.Player
                 input.onWalkToggled += OnWalkToggled;
                 input.onSprintActivated += OnSprintActivated;
                 input.onSprintDeactivated += OnSprintDeactivated;
-                input.onFirePerformed += OnFirePerformed;
             }
         }
 
         private void OnDestroy()
         {
-            if (_playerContext != null && _playerContext.InputReader != null)
+            if (_context != null && _context.inputReader != null)
             {
-                InputSystem.InputReader input = _playerContext.InputReader;
+                InputSystem.InputReader input = _context.inputReader;
                 input.onJumpPerformed -= OnJumpPerformed;
                 input.onAimActivated -= OnAimActivated;
                 input.onAimDeactivated -= OnAimDeactivated;
@@ -138,19 +65,39 @@ namespace TeamZ.Characters.Player
                 input.onWalkToggled -= OnWalkToggled;
                 input.onSprintActivated -= OnSprintActivated;
                 input.onSprintDeactivated -= OnSprintDeactivated;
-                input.onFirePerformed -= OnFirePerformed;
             }
         }
 
         private void Update()
         {
-            _stateMachine.Tick();
+            // Tick orthogonal machines first so they can request movement locks / modify context.
+            if (_context != null)
+            {
+                _context.TickMachines();
+            }
+
+            // If an orthogonal machine has requested a movement lock, skip locomotion updates.
+            if (_context == null || !_context.IsMovementLocked)
+            {
+                _context?.MovementStateMachine?.Tick();
+            }
+        }
+
+        private void FixedUpdate()
+        {
+            // Run movement physics updates in FixedUpdate through the movement state machine.
+            if (_context == null || _context.IsMovementLocked)
+            {
+                return;
+            }
+            
+            _context?.MovementStateMachine?.FixedTick();
         }
 
         private void OnJumpPerformed()
         {
             // First, prefer climb if a climbable ledge is detected in front of the player.
-            ClimbDetectorComponent climbDetector = _playerContext != null ? _playerContext.ClimbDetectorComponent : null;
+            ClimbDetectorComponent climbDetector = _context != null ? _context.climbDetector : null;
 
             if (climbDetector != null)
             {
@@ -174,62 +121,49 @@ namespace TeamZ.Characters.Player
                     kind != ClimbDetectorComponent.ClimbKind.None)
                 {
                     // Drive animator climb type parameter from detected climb kind.
-                    if (_playerContext != null && _playerContext.Animator != null)
+                    if (_context != null && _context.animator != null)
                     {
-                        int climbTypeHash = Animator.StringToHash("ClimbType");
-                        _playerContext.Animator.SetInteger(climbTypeHash, (int)kind);
+                        _context.animator.SetFloat("ClimbType", (int)kind);
                     }
 
-                    States.ClimbState climbState = new States.ClimbState(
-                        _playerContext,
-                        _motor,
-                        _stateMachine,
-                        this,
-                        ledgePos,
-                        ledgeNormal,
-                        (int)kind);
+                    var climbState = new States.Movement.ClimbState(_context,this, ledgePos, ledgeNormal, (int)kind);
 
-                    _stateMachine.SetState(climbState);
+                    _context?.MovementStateMachine.SetState(climbState);
+                    
                     return;
                 }
             }
 
             // If we didn't find a climb, fall back to airborne behaviour.
-            States.PlayerAirborneState airborne = new States.PlayerAirborneState(
-                _playerContext,
-                _motor,
-                _stateMachine,
-                _jumpForce,
-                _gravityMultiplier,
-                this);
+            var airborne = new States.Movement.AirborneState(_context,this);
 
-            _stateMachine.SetState(airborne);
+            _context?.MovementStateMachine.SetState(airborne);
         }
 
         private void OnAimActivated()
         {
-            _isAiming = true;
+            _context.IsAiming = true;
             
             if (_aimComponent != null)
             {
-                _aimComponent.SetAiming(true);
+                _context.aim.SetAiming(true);
             }
         }
 
         private void OnAimDeactivated()
         {
-            _isAiming = false;
+            _context.IsAiming = false;
             
             if (_aimComponent != null)
             {
-                _aimComponent.SetAiming(false);
+                _context.aim.SetAiming(false);
             }
         }
 
         private void OnCrouchActivated()
         {
             // Mirror legacy: only crouch if grounded.
-            if (_playerContext != null && _playerContext.IsGrounded)
+            if (_context != null && _context.IsGrounded)
             {
                 SetCrouch(true);
             }
@@ -238,8 +172,8 @@ namespace TeamZ.Characters.Player
         private void OnCrouchDeactivated()
         {
             // Only stand up if there is enough headroom and we are not sliding, mirroring legacy controller.
-            bool cannotStand = _playerContext != null && _playerContext.CannotStandUp;
-            if (!cannotStand && !_isSliding)
+            bool cannotStand = _context != null && _context.CannotStandUp;
+            if (!cannotStand && _context.IsSliding)
             {
                 SetCrouch(false);
             }
@@ -248,42 +182,30 @@ namespace TeamZ.Characters.Player
         private void OnWalkToggled()
         {
             // Mirror legacy EnableWalk: only allow walk when grounded and not sprinting.
-            bool grounded = _playerContext != null && _playerContext.IsGrounded;
-            _isWalking = !_isWalking && grounded && !_isSprinting;
+            bool grounded = _context != null && _context.IsGrounded;
+            _context.IsWalking = !_context.IsWalking && grounded && !_context.IsSprinting;
         }
 
         private void OnSprintActivated()
         {
             // Mirror legacy ActivateSprint: cancel walk, sprint only when not crouching.
-            if (!_isCrouching)
+            if (!_context.IsCrouching)
             {
-                _isWalking = false;
-                _isSprinting = true;
+                _context.IsWalking = false;
+                _context.IsSprinting = true;
             }
         }
 
         private void OnSprintDeactivated()
         {
-            _isSprinting = false;
+            _context.IsSprinting = false;
         }
 
-        private void OnFirePerformed()
-        {
-            Debug.Log("Fire!");
-            
-            if (_aimComponent == null || _weaponHandler == null)
-            {
-                return;
-            }
-
-            Ray aimRay = _aimComponent.GetAimRay();
-            
-            _weaponHandler.Fire(aimRay, _isAiming);
-        }
+        // Fire is handled by the Combat state machine now.
 
         private void SetCrouch(bool crouch)
         {
-            _isCrouching = crouch;
+            _context.IsCrouching = crouch;
 
             if (_characterController == null)
             {
@@ -294,47 +216,33 @@ namespace TeamZ.Characters.Player
             {
                 if (crouch)
                 {
-                    _characterController.center = new Vector3(0f, _capsuleCrouchingCentre, 0f);
-                    _characterController.height = _capsuleCrouchingHeight;
+                    _characterController.center = new Vector3(0f, _context.playerConfig.capsuleCrouchingCentre, 0f);
+                    _characterController.height = _context.playerConfig.capsuleCrouchingHeight;
                 }
                 else
                 {
-                    _characterController.center = new Vector3(0f, _capsuleStandingCentre, 0f);
-                    _characterController.height = _capsuleStandingHeight;
+                    _characterController.center = new Vector3(0f, _context.playerConfig.capsuleStandingCentre, 0f);
+                    _characterController.height = _context.playerConfig.capsuleStandingHeight;
                 }
             }
         }
 
         public void ActivateSliding()
         {
-            _isSliding = true;
+            _context.IsSliding = true;
         }
 
         public void DeactivateSliding()
         {
-            _isSliding = false;
+            _context.IsSliding = false;
         }
 
-        public float WalkSpeed => _walkSpeed;
-        public float RunSpeed => _runSpeed;
-        public float SprintSpeed => _sprintSpeed;
-        public float SpeedChangeDamping => _speedChangeDamping;
-        public float RotationSmoothing => _rotationSmoothing;
-        public bool AlwaysStrafe => _alwaysStrafe;
-        public float ForwardStrafeMinThreshold => _forwardStrafeMinThreshold;
-        public float ForwardStrafeMaxThreshold => _forwardStrafeMaxThreshold;
-
-        public float JumpForce => _jumpForce;
-        public float GravityMultiplier => _gravityMultiplier;
-
-        public bool IsAiming => _isAiming;
-        public bool IsCrouching => _isCrouching;
-        public bool IsSliding => _isSliding;
-        public bool IsWalking => _isWalking;
-        public bool IsSprinting => _isSprinting;
-
         // Expose ledge offset so ClimbState can mirror legacy placement
-        public float LedgeForwardOffset => _ledgeForwardOffset;
+        public float LedgeForwardOffset => _context.playerConfig.ledgeForwardOffset;
+
+        // Debug helper: expose the current locomotion state's type name
+        public string CurrentLocomotionStateName => _context != null && _context.MovementStateMachine != null && _context.MovementStateMachine.CurrentState != null
+            ? _context.MovementStateMachine.CurrentState.GetType().Name
+            : "None";
     }
 }
-

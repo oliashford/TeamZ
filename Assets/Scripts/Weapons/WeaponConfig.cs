@@ -34,5 +34,9 @@ namespace TeamZ.Weapons
         [Header("ADS Camera Tweak (optional)")]
         [Tooltip("FOV offset applied when aiming with this weapon")]
         public float adsFovModifier = -10f;
+
+        [Header("Ammo")]
+        [Tooltip("Number of rounds in a full magazine")]
+        public int magazineSize = 30;
     }
 }

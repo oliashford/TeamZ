@@ -1,19 +1,18 @@
-using UnityEngine;
-
 namespace TeamZ.Characters.Core
 {
-    /// <summary>
-    /// Base contract for a character state in the state machine.
-    /// </summary>
+    // Base contract for a character state in the state machine.
     public interface ICharacterState
     {
-        /// <summary>Called once when the state becomes active.</summary>
+        // Called once when the state becomes active.
         void Enter();
 
-        /// <summary>Called every frame while the state is active.</summary>
+        // Called every frame while the state is active.
         void Tick();
+        
+        // Called from FixedUpdate (physics step) while the state is active.
+        void FixedTick();
 
-        /// <summary>Called once when the state is about to be replaced.</summary>
+        // Called once when the state is about to be replaced.
         void Exit();
     }
 }
